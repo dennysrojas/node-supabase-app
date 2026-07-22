@@ -45,3 +45,16 @@ export const supabaseAdmin = createClient<Database>(
     },
   }
 );
+
+export const supabase = createClient<any>(
+  env.SUPABASE_URL,
+  env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
+);
+
+

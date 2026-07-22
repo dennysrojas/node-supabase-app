@@ -41,6 +41,15 @@ describe('Suite de Pruebas de Integración - Productos & Auth', () => {
         error: 'Producto no encontrado',
       });
     });
+
+    it('GET /api/products/:id debe retornar HTTP 400 cuando el ID no es un UUID válido', async () => {
+      const response = await request(app).get('/api/products/id-invalido-123');
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        success: false,
+        error: 'El ID proporcionado no es un UUID válido',
+      });
+    });
   });
 
   describe('3. Protección de Escritura sin Autenticación', () => {
@@ -89,6 +98,29 @@ describe('Suite de Pruebas de Integración - Productos & Auth', () => {
       expect(response.body.data.user_id).toBe(mainUser.userId);
 
       createdProductId = response.body.data.id;
+    });
+
+    it('POST /api/products debe rechazar (HTTP 400) si faltan campos o si el precio es negativo', async () => {
+      const response = await request(app)
+        .post('/api/products')
+        .set('Authorization', `Bearer ${mainUser.accessToken}`)
+        .send({ name: '', price: -10 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('PUT /api/products/:id debe rechazar (HTTP 400) si se envía un cuerpo vacío sin campos a actualizar', async () => {
+      const response = await request(app)
+        .put(`/api/products/${createdProductId}`)
+        .set('Authorization', `Bearer ${mainUser.accessToken}`)
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        success: false,
+        error: 'Debe proporcionar al menos un campo para actualizar',
+      });
     });
 
     it('PUT /api/products/:id debe rechazar la modificación (HTTP 403) si es intentada por otro usuario', async () => {

@@ -3,15 +3,21 @@ import { ProductService } from '../services/product.service.js';
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { z } from 'zod';
 
+const uuidSchema = z.string().uuid({ message: 'El ID proporcionado no es un UUID válido' });
+
 const createProductSchema = z.object({
   name: z.string().min(1, { message: 'El nombre es obligatorio' }),
   price: z.number().positive({ message: 'El precio debe ser un número positivo' }),
 });
 
-const updateProductSchema = z.object({
-  name: z.string().min(1, { message: 'El nombre no puede estar vacío' }).optional(),
-  price: z.number().positive({ message: 'El precio debe ser un número positivo' }).optional(),
-});
+const updateProductSchema = z
+  .object({
+    name: z.string().min(1, { message: 'El nombre no puede estar vacío' }).optional(),
+    price: z.number().positive({ message: 'El precio debe ser un número positivo' }).optional(),
+  })
+  .refine((data) => data.name !== undefined || data.price !== undefined, {
+    message: 'Debe proporcionar al menos un campo para actualizar',
+  });
 
 export class ProductController {
   /**
@@ -33,8 +39,9 @@ export class ProductController {
   static async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      if (!id || typeof id !== 'string') {
-        res.status(400).json({ success: false, error: 'ID de producto requerido' });
+      const idValidation = uuidSchema.safeParse(id);
+      if (!idValidation.success) {
+        res.status(400).json({ success: false, error: 'El ID proporcionado no es un UUID válido' });
         return;
       }
 
@@ -96,8 +103,9 @@ export class ProductController {
       }
 
       const { id } = req.params;
-      if (!id || typeof id !== 'string') {
-        res.status(400).json({ success: false, error: 'ID de producto requerido' });
+      const idValidation = uuidSchema.safeParse(id);
+      if (!idValidation.success) {
+        res.status(400).json({ success: false, error: 'El ID proporcionado no es un UUID válido' });
         return;
       }
 
@@ -149,8 +157,9 @@ export class ProductController {
       }
 
       const { id } = req.params;
-      if (!id || typeof id !== 'string') {
-        res.status(400).json({ success: false, error: 'ID de producto requerido' });
+      const idValidation = uuidSchema.safeParse(id);
+      if (!idValidation.success) {
+        res.status(400).json({ success: false, error: 'El ID proporcionado no es un UUID válido' });
         return;
       }
 
