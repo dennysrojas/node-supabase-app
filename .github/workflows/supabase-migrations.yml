@@ -18,7 +18,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.15.0
+          version: 2.39.2 # Versión actualizada que soporta los campos de config.toml
 
       - name: Deploy Migrations to Supabase Cloud
         env:
