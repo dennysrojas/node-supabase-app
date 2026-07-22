@@ -18,7 +18,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.15.0 # Versión fija para evitar la consulta a la API de GitHub (Rate Limit)
 
       - name: Deploy Migrations to Supabase Cloud
         env:
