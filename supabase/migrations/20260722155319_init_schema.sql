@@ -1,0 +1,11 @@
+CREATE TABLE public.products (id uuid DEFAULT gen_random_uuid() NOT NULL, name text NOT NULL, price numeric NOT NULL, user_id uuid NOT NULL, created_at timestamp with time zone DEFAULT now());
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+ALTER TABLE public.products ADD CONSTRAINT products_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+GRANT ALL ON public.products TO anon;
+GRANT ALL ON public.products TO authenticated;
+GRANT ALL ON public.products TO service_role;
+CREATE POLICY "Actualización por propietario" ON public.products FOR UPDATE USING ((auth.uid() = user_id));
+CREATE POLICY "Eliminación por propietario" ON public.products FOR DELETE USING ((auth.uid() = user_id));
+CREATE POLICY "Inserción autenticada" ON public.products FOR INSERT WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Lectura pública de productos" ON public.products FOR SELECT USING (true);
