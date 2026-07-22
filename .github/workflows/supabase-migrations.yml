@@ -15,15 +15,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          version: 2.39.2 # Versión actualizada que soporta los campos de config.toml
+          node-version: 22
 
       - name: Deploy Migrations to Supabase Cloud
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} -p "$SUPABASE_DB_PASSWORD"
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          npx supabase@latest link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} -p "$SUPABASE_DB_PASSWORD"
+          npx supabase@latest db push --password "$SUPABASE_DB_PASSWORD"
