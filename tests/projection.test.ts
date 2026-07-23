@@ -104,6 +104,31 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
   });
 
   // =========================================================================
+  // GET /api/v1/projections/stores
+  // =========================================================================
+  describe("GET /api/v1/projections/stores", () => {
+    it("Debe retornar 200 y la lista de tiendas", async () => {
+      const mockStores = [
+        {
+          id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          code: "KFC-001",
+          name: "Quito Centro",
+          is_active: true,
+        },
+      ];
+
+      mockOrder.mockResolvedValueOnce({ data: mockStores, error: null });
+
+      const response = await request(app).get("/api/v1/projections/stores");
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveLength(1);
+      expect(response.body.data[0].code).toBe("KFC-001");
+    });
+  });
+
+  // =========================================================================
   // POST /api/v1/projections
   // =========================================================================
   describe("POST /api/v1/projections", () => {

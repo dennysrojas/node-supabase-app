@@ -108,6 +108,24 @@ export class ProjectionService {
   }
 
   /**
+   * Obtiene el catálogo completo de tiendas/locales
+   */
+  async getStores() {
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .order("code", { ascending: true });
+
+    if (error) {
+      throw new Error(
+        `Error al consultar el catálogo de tiendas: ${error.message}`,
+      );
+    }
+
+    return data;
+  }
+
+  /**
    * Consulta la proyección completa (P&L) de un local para un año, mes y escenario dados
    */
   async getProjectionByStoreAndPeriod(

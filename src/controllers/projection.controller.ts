@@ -115,6 +115,26 @@ export class ProjectionController {
       next(error);
     }
   }
+
+  /**
+   * GET /api/v1/projections/stores
+   * Obtiene el listado de locales para el filtro
+   */
+  async getStores(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const stores = await projectionService.getStores();
+      res.status(200).json({
+        success: true,
+        data: stores,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const projectionController = new ProjectionController();
