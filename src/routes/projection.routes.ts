@@ -10,19 +10,25 @@ projectionRouter.get(
   projectionController.getAccountItems as RequestHandler,
 );
 
-// 2. NUEVA RUTA: Obtener listado de locales / tiendas KFC
+// 2. Obtener listado de locales / tiendas KFC
 projectionRouter.get(
   "/stores",
   projectionController.getStores as RequestHandler,
 );
 
-// 3. Obtener proyección guardada por tienda
+// 3. Obtener proyección guardada por tienda y periodo
 projectionRouter.get(
   "/store/:storeId",
   projectionController.getProjection as RequestHandler,
 );
 
-// 4. Crear o actualizar proyección
+// 🆕 NUEVA RUTA: Obtener proyección del año completo (12 meses)
+projectionRouter.get(
+  "/store/:storeId/year/:year",
+  projectionController.getYearlyProjection as RequestHandler,
+);
+
+// 5. Crear o actualizar proyección
 projectionRouter.post(
   "/",
   projectionController.createProjection as RequestHandler,

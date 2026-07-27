@@ -233,6 +233,30 @@ export class ProjectionService {
       details: formattedDetails,
     };
   }
+
+  /**
+   * Consulta los encabezados y detalles de los 12 meses en Supabase
+   */
+  async getYearlyProjection(storeId: string, year: number, scenario: string) {
+    const { data, error } = await supabase
+      .from("projection_headers")
+      .select(
+        `
+        *,
+        details:projection_details(
+          *,
+          account_item:account_items(*)
+        )
+      `,
+      )
+      .eq("store_id", storeId)
+      .eq("period_year", year)
+      .eq("scenario", scenario)
+      .order("period_month", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
 }
 
 export const projectionService = new ProjectionService();

@@ -135,6 +135,33 @@ export class ProjectionController {
       next(error);
     }
   }
+
+  /**
+   * GET /api/v1/projections/store/:storeId/year/:year?scenario=BASE
+   * Obtiene las proyecciones financieras del año completo (12 meses)
+   */
+  async getYearlyProjection(req: Request, res: Response) {
+    try {
+      const { storeId, year } = req.params;
+      const scenario = String(req.query.scenario || "BASE");
+
+      const data = await projectionService.getYearlyProjection(
+        storeId,
+        Number(year),
+        scenario,
+      );
+
+      return res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: error.message || "Error al obtener proyección anual",
+      });
+    }
+  }
 }
 
 export const projectionController = new ProjectionController();
