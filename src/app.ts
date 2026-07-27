@@ -8,17 +8,23 @@ export const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://trd-projections-frontend.vercel.app", // Tu URL exacta de Vercel
+  "https://kfc-projections-frontend.vercel.app",
+  "https://trd-projections-frontend.vercel.app",
 ];
 
 // Middlewares globales
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Si no hay origen (ej. Postman) o si está en la lista de permitidos o es un subdominio de Vercel
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
         callback(null, true);
       } else {
-        callback(new Error("No permitido por políticas CORS"));
+        callback(new Error("Bloqueado por CORS"));
       }
     },
     credentials: true,
