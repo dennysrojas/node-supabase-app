@@ -114,7 +114,7 @@ export class ProjectionService {
     const { data, error } = await supabase
       .from("stores")
       .select("*")
-      .order("code", { ascending: true });
+      .order("store_id", { ascending: true });
 
     if (error) {
       throw new Error(
@@ -149,8 +149,10 @@ export class ProjectionService {
         created_at,
         updated_at,
         stores (
-          code,
-          name
+          store_uid,
+          store_id,
+          store_name,
+          store_id_and_name
         )
       `,
       )

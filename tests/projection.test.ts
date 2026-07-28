@@ -110,10 +110,10 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
     it("Debe retornar 200 y la lista de tiendas", async () => {
       const mockStores = [
         {
-          id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-          code: "KFC-001",
-          name: "Quito Centro",
-          is_active: true,
+          store_uid: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          store_id: "KFC-001",
+          store_name: "Quito Centro",
+          store_id_and_name: "KFC-001 - Quito Centro",
         },
       ];
 
@@ -124,7 +124,7 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(1);
-      expect(response.body.data[0].code).toBe("KFC-001");
+      expect(response.body.data[0].store_id).toBe("KFC-001");
     });
   });
 
@@ -214,7 +214,12 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
           result_before_depreciation: 4500.0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          stores: { code: "KFC-001", name: "Quito Centro" },
+          stores: {
+            store_uid: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+            store_id: "KFC-001",
+            store_name: "Quito Centro",
+            store_id_and_name: "KFC-001 - Quito Centro",
+          },
         },
         error: null,
       });
@@ -243,7 +248,7 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.store.name).toBe("Quito Centro");
+      expect(response.body.data.store.store_name).toBe("Quito Centro");
       expect(response.body.data.details).toHaveLength(1);
     });
 
