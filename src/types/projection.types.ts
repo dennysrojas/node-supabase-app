@@ -35,6 +35,8 @@ export interface CreateProjectionDTO {
   period_year: number;
   period_month: number;
   scenario?: string;
+  total_sales_net?: number;
+  result_before_depreciation?: number;
   details: ProjectionDetailItemInput[];
 }
 

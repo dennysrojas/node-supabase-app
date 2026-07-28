@@ -17,6 +17,8 @@ export class ProjectionService {
       period_year,
       period_month,
       scenario = "BASE",
+      total_sales_net = 0,
+      result_before_depreciation = 0,
       details,
     } = dto;
 
@@ -29,6 +31,8 @@ export class ProjectionService {
           period_year,
           period_month,
           scenario,
+          total_sales_net,
+          result_before_depreciation,
           created_by: userId || null,
           updated_at: new Date().toISOString(),
         },

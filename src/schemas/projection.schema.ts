@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 export const createProjectionSchema = z.object({
-  store_id: z.string().uuid({ message: "ID de tienda inválido" }),
-  period_year: z.number().int().min(2024).max(2035),
+  store_id: z.string().min(1, { message: "ID de tienda requerido" }),
+  period_year: z.number().int().min(2020).max(2050),
   period_month: z.number().int().min(1).max(12),
   scenario: z.string().optional().default("BASE"),
+  total_sales_net: z.number().optional().default(0),
+  result_before_depreciation: z.number().optional().default(0),
   details: z
     .array(
       z.object({
