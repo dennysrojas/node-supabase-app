@@ -3,28 +3,21 @@
 -- ============================================================================
 -- 1. INSERTAR LOCALES / TIENDAS DE PRUEBA
 INSERT INTO public.stores (
-    store_id,
-    store_name,
-    brand_name,
-    country,
-    city_name,
-    operation_region,
-    operation_region_order,
-    open_date
+    code,
+    name
 )
 VALUES 
-    ('KFC-UIO-001', 'KFC CCI Quito', 'KFC', 'Ecuador', 'Quito', 'Sierra Norte', 1, '2015-05-10'),
-    ('KFC-GYE-001', 'KFC Mall del Sol Guayaquil', 'KFC', 'Ecuador', 'Guayaquil', 'Costa', 2, '2018-08-15'),
-    ('KFC-CUE-001', 'KFC Mall del Río Cuenca', 'KFC', 'Ecuador', 'Cuenca', 'Sierra Sur', 3, '2020-02-01')
-ON CONFLICT (store_id) DO UPDATE
-SET store_name = EXCLUDED.store_name,
-    operation_region = EXCLUDED.operation_region;
+    ('KFC-UIO-001', 'KFC CCI Quito'),
+    ('KFC-GYE-001', 'KFC Mall del Sol Guayaquil'),
+    ('KFC-CUE-001', 'KFC Mall del Río Cuenca')
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name;
 
 -- 2. INSERTAR CABECERA DE PROYECCIÓN DE DEMO (KFC CCI Quito - Agosto 2026)
 WITH store_ref AS (
-    SELECT store_uid
+    SELECT id AS store_id
     FROM public.stores
-    WHERE store_id = 'KFC-UIO-001'
+    WHERE code = 'KFC-UIO-001'
     LIMIT 1
 )
 INSERT INTO public.projection_headers (
@@ -35,7 +28,7 @@ INSERT INTO public.projection_headers (
         total_sales_net,
         result_before_depreciation
     )
-SELECT store_uid,
+SELECT store_id,
     2026,
     8,
     'BASE',
@@ -50,8 +43,8 @@ SET total_sales_net = EXCLUDED.total_sales_net,
 WITH header_ref AS (
     SELECT ph.id AS header_id
     FROM public.projection_headers ph
-        JOIN public.stores s ON ph.store_id = s.store_uid
-    WHERE s.store_id = 'KFC-UIO-001'
+        JOIN public.stores s ON ph.store_id = s.id
+    WHERE s.code = 'KFC-UIO-001'
         AND ph.period_year = 2026
         AND ph.period_month = 8
         AND ph.scenario = 'BASE'
