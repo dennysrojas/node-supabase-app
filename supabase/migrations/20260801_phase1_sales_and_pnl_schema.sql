@@ -55,7 +55,7 @@ SET
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.sales_projections_daily (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+    store_id VARCHAR(100) NOT NULL REFERENCES public.stores(store_uid) ON DELETE CASCADE,
     year INT NOT NULL CHECK (year >= 2020 AND year <= 2050),
     month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
     day INT NOT NULL CHECK (day BETWEEN 1 AND 31),
@@ -82,7 +82,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_daily_lookup
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.sales_projections_monthly (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+    store_id VARCHAR(100) NOT NULL REFERENCES public.stores(store_uid) ON DELETE CASCADE,
     year INT NOT NULL CHECK (year >= 2020 AND year <= 2050),
     month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
     gross_sales NUMERIC(12, 2) NOT NULL DEFAULT 0.00 CHECK (gross_sales >= 0),
