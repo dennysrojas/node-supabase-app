@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import productRoutes from "./routes/product.routes.js";
 import projectionRouter from "./routes/projection.routes.js";
+import salesProjectionsRouter from "./routes/salesProjections.routes.js";
 
 export const app = express();
 
@@ -43,6 +44,7 @@ app.use("/api/products", productRoutes);
 
 // Registrar el módulo de proyecciones financieras
 app.use("/api/v1/projections", projectionRouter);
+app.use("/api/v1/sales-projections", salesProjectionsRouter);
 
 // Handler global para rutas no encontradas (404)
 app.use((_req, res) => {
