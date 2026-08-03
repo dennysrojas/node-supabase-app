@@ -96,9 +96,9 @@ router.post('/daily/upsert', (async (req: Request, res: Response) => {
 
     // Preparar registros con recálculo de Venta Neta
     const payload = days_data.map((dayItem: any) => {
-      const transactions = Math.max(0, Number(dayItem.transactions) || 0);
+      const transactions = Math.max(0, Number(dayItem.total_transactions ?? dayItem.transactions) || 0);
       const averageTicket = Math.max(0, Number(dayItem.average_ticket) || 0);
-      const grossSales = Math.round(transactions * averageTicket * 100) / 100;
+      const grossSales = Number(dayItem.total_gross_sales ?? dayItem.gross_sales) || Math.round(transactions * averageTicket * 100) / 100;
       const netSales = Math.round(grossSales * (1 - taxFactor) * 100) / 100;
 
       const formattedMonth = String(month).padStart(2, '0');
@@ -114,6 +114,7 @@ router.post('/daily/upsert', (async (req: Request, res: Response) => {
         transactions,
         average_ticket: averageTicket,
         net_sales: netSales,
+        channels: dayItem.channels || null,
         status: 'DRAFT',
         updated_at: new Date().toISOString()
       };
