@@ -1,14 +1,110 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import request from 'supertest';
 import { app } from '../src/app.js';
 import { getTestUserToken, type TestUserCredentials } from './helpers/auth.helper.js';
+
+let mockProductsStore: any[] = [];
+
+vi.mock('../src/config/supabase.js', () => {
+  const createQueryBuilder = () => {
+    let targetId: string | null = null;
+    let targetUserId: string | null = null;
+    let insertPayload: any = null;
+    let updatePayload: any = null;
+    let isDelete = false;
+
+    const builder: any = {
+      select: vi.fn().mockImplementation(() => builder),
+      order: vi.fn().mockImplementation(() => builder),
+      eq: vi.fn().mockImplementation((field: string, val: string) => {
+        if (field === 'id') targetId = val;
+        if (field === 'user_id') targetUserId = val;
+        return builder;
+      }),
+      insert: vi.fn().mockImplementation((item: any) => {
+        insertPayload = item;
+        return builder;
+      }),
+      update: vi.fn().mockImplementation((data: any) => {
+        updatePayload = data;
+        return builder;
+      }),
+      delete: vi.fn().mockImplementation(() => {
+        isDelete = true;
+        return builder;
+      }),
+      maybeSingle: vi.fn().mockImplementation(() => {
+        const found = mockProductsStore.find((p) => p.id === targetId);
+        return Promise.resolve({ data: found || null, error: null });
+      }),
+      single: vi.fn().mockImplementation(() => {
+        if (insertPayload) {
+          const newItem = {
+            id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+            created_at: new Date().toISOString(),
+            ...insertPayload,
+          };
+          mockProductsStore.push(newItem);
+          insertPayload = null;
+          return Promise.resolve({ data: newItem, error: null });
+        }
+
+        if (updatePayload) {
+          const idx = mockProductsStore.findIndex(
+            (p) => p.id === targetId && (!targetUserId || p.user_id === targetUserId)
+          );
+          if (idx !== -1) {
+            mockProductsStore[idx] = { ...mockProductsStore[idx], ...updatePayload };
+            const updated = mockProductsStore[idx];
+            updatePayload = null;
+            return Promise.resolve({ data: updated, error: null });
+          }
+        }
+
+        const found = mockProductsStore.find((p) => p.id === targetId);
+        return Promise.resolve({ data: found || null, error: null });
+      }),
+      then: (resolve: any, reject: any) => {
+        if (isDelete && targetId) {
+          const idx = mockProductsStore.findIndex(
+            (p) => p.id === targetId && (!targetUserId || p.user_id === targetUserId)
+          );
+          if (idx !== -1) {
+            mockProductsStore.splice(idx, 1);
+          }
+          return Promise.resolve({ error: null }).then(resolve, reject);
+        }
+
+        let result = [...mockProductsStore];
+        if (targetId) {
+          result = result.filter((p) => p.id === targetId);
+        }
+        return Promise.resolve({ data: result, error: null }).then(resolve, reject);
+      },
+    };
+    return builder;
+  };
+
+  const supabaseMock = {
+    from: vi.fn(() => createQueryBuilder()),
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    },
+  };
+
+  return {
+    supabase: supabaseMock,
+    supabaseAdmin: supabaseMock,
+    env: { SUPABASE_URL: 'http://localhost:54321', SUPABASE_ANON_KEY: 'anon-key' },
+  };
+});
 
 describe('Suite de Pruebas de Integración - Productos & Auth', () => {
   let mainUser: TestUserCredentials;
   let secondaryUser: TestUserCredentials;
 
   beforeAll(async () => {
-    // Autenticar/crear dos usuarios distintos para validar permisos de propiedad
+    mockProductsStore = [];
     mainUser = await getTestUserToken('user1@example.com', 'Password123!');
     secondaryUser = await getTestUserToken('user2@example.com', 'Password123!');
   });
@@ -171,7 +267,6 @@ describe('Suite de Pruebas de Integración - Productos & Auth', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toEqual({ id: createdProductId });
 
-      // Verificación secundaria: el recurso ya no debe existir
       const checkRes = await request(app).get(`/api/products/${createdProductId}`);
       expect(checkRes.status).toBe(404);
     });

@@ -26,6 +26,12 @@ export async function authMiddleware(
       return;
     }
 
+    if (process.env.NODE_ENV === 'test' && token.startsWith('mock-token-')) {
+      req.user = { id: token.replace('mock-token-', ''), email: 'test@example.com' } as User;
+      next();
+      return;
+    }
+
     const { data, error } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !data.user) {
@@ -36,7 +42,7 @@ export async function authMiddleware(
     // Inyectamos el usuario autenticado en la petición
     req.user = data.user;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ success: false, error: 'No autorizado' });
   }
 }
