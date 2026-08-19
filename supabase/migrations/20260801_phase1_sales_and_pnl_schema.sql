@@ -114,7 +114,7 @@ SET scenario = 'BASE'
 WHERE scenario IS NULL OR scenario <> 'BASE';
 
 CREATE INDEX IF NOT EXISTS idx_projection_headers_status 
-    ON public.projection_headers(store_id, year, status);
+    ON public.projection_headers(store_id, period_year, status);
 
 -- -----------------------------------------------------------------------------
 -- 6. TRIGGERS: Actualización automática del campo `updated_at`
