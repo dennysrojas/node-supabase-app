@@ -5,3 +5,4 @@ dist
 .antigravity
 coverage
 *.log
+TECHNICAL_DOCS.md
