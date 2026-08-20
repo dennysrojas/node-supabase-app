@@ -3,6 +3,8 @@ import cors from "cors";
 import productRoutes from "./routes/product.routes.js";
 import projectionRouter from "./routes/projection.routes.js";
 import salesProjectionsRouter from "./routes/salesProjections.routes.js";
+import { userRoutes, scopeRoutes, auditRoutes } from "./routes/admin.routes.js";
+import { auditInterceptorMiddleware } from "./middlewares/auditInterceptor.middleware.js";
 
 export const app = express();
 
@@ -33,6 +35,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(auditInterceptorMiddleware as express.RequestHandler);
 
 // Endpoint de verificación de salud (health check)
 app.get("/health", (_req, res) => {
@@ -45,6 +48,14 @@ app.use("/api/products", productRoutes);
 // Registrar el módulo de proyecciones financieras
 app.use("/api/v1/projections", projectionRouter);
 app.use("/api/v1/sales-projections", salesProjectionsRouter);
+
+// Registrar rutas de administración de usuarios, alcances y auditoría
+app.use("/api/users", userRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/scopes", scopeRoutes);
+app.use("/api/v1/scopes", scopeRoutes);
+app.use("/api/audit", auditRoutes);
+app.use("/api/v1/audit", auditRoutes);
 
 // Handler global para rutas no encontradas (404)
 app.use((_req, res) => {

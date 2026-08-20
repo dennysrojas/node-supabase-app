@@ -154,6 +154,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          user_email: string | null
+          user_role: 'CAPTURADOR' | 'SUPERVISOR' | 'ADMIN_GLOBAL' | 'AUDITOR' | 'ADMIN_MODULO' | null
+          action: string
+          module_code: string | null
+          store_uid: string | null
+          details: Json | null
+          ip_address: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          user_email?: string | null
+          user_role?: 'CAPTURADOR' | 'SUPERVISOR' | 'ADMIN_GLOBAL' | 'AUDITOR' | 'ADMIN_MODULO' | null
+          action: string
+          module_code?: string | null
+          store_uid?: string | null
+          details?: Json | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          user_email?: string | null
+          user_role?: 'CAPTURADOR' | 'SUPERVISOR' | 'ADMIN_GLOBAL' | 'AUDITOR' | 'ADMIN_MODULO' | null
+          action?: string
+          module_code?: string | null
+          store_uid?: string | null
+          details?: Json | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
