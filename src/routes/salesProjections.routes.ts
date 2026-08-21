@@ -35,8 +35,9 @@ router.get('/config/brand/:brandCode', (async (req: Request, res: Response) => {
     }
 
     return res.json({ success: true, data });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al obtener configuración de marca';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
@@ -62,8 +63,9 @@ router.get('/daily', (async (req: Request, res: Response) => {
     if (error) throw error;
 
     return res.json({ success: true, data: data || [] });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al consultar ventas diarias';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
@@ -95,7 +97,7 @@ router.post('/daily/upsert', (async (req: Request, res: Response) => {
     const taxFactor = Number(tax_discount_pct) || 0.12;
 
     // Preparar registros con recálculo de Venta Neta
-    const payload = days_data.map((dayItem: any) => {
+    const payload = days_data.map((dayItem: Record<string, unknown>) => {
       const transactions = Math.max(0, Number(dayItem.total_transactions ?? dayItem.transactions) || 0);
       const averageTicket = Math.max(0, Number(dayItem.average_ticket) || 0);
       const grossSales = Number(dayItem.total_gross_sales ?? dayItem.gross_sales) || Math.round(transactions * averageTicket * 100) / 100;
@@ -132,8 +134,9 @@ router.post('/daily/upsert', (async (req: Request, res: Response) => {
       message: 'Ventas diarias actualizadas correctamente.',
       data
     });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al guardar ventas diarias';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
@@ -158,8 +161,9 @@ router.get('/monthly', (async (req: Request, res: Response) => {
     if (error) throw error;
 
     return res.json({ success: true, data: data || [] });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al consultar ventas mensuales';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
@@ -173,7 +177,7 @@ router.post('/monthly/upsert', (async (req: Request, res: Response) => {
 
     const taxFactor = Number(tax_discount_pct) || 0.12;
 
-    const payload = months_data.map((mItem: any) => {
+    const payload = months_data.map((mItem: Record<string, unknown>) => {
       const grossSales = Math.max(0, Number(mItem.gross_sales) || 0);
       const netSales = Math.round(grossSales * (1 - taxFactor) * 100) / 100;
 
@@ -200,8 +204,9 @@ router.post('/monthly/upsert', (async (req: Request, res: Response) => {
       message: 'Ventas mensuales guardadas correctamente.',
       data
     });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al guardar ventas mensuales';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
@@ -242,8 +247,9 @@ router.post('/lock', (async (req: Request, res: Response) => {
       success: true,
       message: `Proyección de ${target_module} ASENTADA correctamente. Edición bloqueada.`
     });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al asentar proyección';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
@@ -279,8 +285,9 @@ router.post('/unlock', requireSupervisorRole, (async (req: Request, res: Respons
       success: true,
       message: `Proyección de ${target_module} DESBLOQUEADA exitosamente por Supervisor.`
     });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error al desbloquear proyección';
+    return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
 
