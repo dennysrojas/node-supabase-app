@@ -6,20 +6,25 @@
 ![Supabase](https://img.shields.io/badge/Supabase-DB-3ECF8E)
 ![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED)
 
-API REST robusta construida con **Node.js, Express y TypeScript** utilizando **Supabase (PostgreSQL)** como motor de base de datos. Diseñada para gestionar el módulo de **Proyecciones Financieras P&L de KFC** y catálogos institucionales de tiendas y cuentas contables.
+API REST robusta construida con **Node.js, Express y TypeScript** utilizando **Supabase (PostgreSQL)** como motor de base de datos y autenticación corporativa. Diseñada para gestionar el módulo de **Proyecciones Financieras P&L de KFC**, control de accesos por roles (RBAC) y catálogos institucionales de tiendas y cuentas contables.
 
 ---
 
 ## 🚀 Características Principales
 
 - **TypeScript Completo**: Tipado estático en todo el proyecto y contratos DTO estrictos.
+- **Autenticación & Control de Accesos por Rol (RBAC / ABAC - Fases 1, 2 & 3)**:
+  - Verificación de tokens JWT mediante Supabase Auth SDK.
+  - Middlewares de seguridad `authMiddleware` y `requireModuleScope` por tupla ($\text{User} \times \text{Module} \times \text{Store} \times \text{Role}$).
+  - Interceptor automático de auditoría `auditInterceptorMiddleware` que registra todas las mutaciones en `public.audit_logs`.
+  - Roles soportados: `ADMIN_GLOBAL`, `SUPERVISOR`, `CAPTURADOR`, `AUDITOR`.
 - **Validación de Datos en Tiempo Real**: Esquema de validación mediante `Zod` preparado para identificadores alfanuméricos de tiendas (ej. `H001ECU`, `K002ECU`) y rubros contables.
 - **Modelo Master-Detail de Proyecciones P&L**:
   - `projection_headers`: Almacena metadatos por local, año, mes, escenario, ventas netas y resultado operativo (EBITDA).
   - `projection_details`: Almacena el desglose por rubro contable en monto (USD) y porcentaje (%).
 - **Reestructuración Dinámica de Tiendas (`public.stores`)**: Soporta `store_uid` (Alfanumérico Primary Key), `store_id` único y columna generada `store_id_and_name`.
 - **Ingestión Masiva e Idempotente (Upsert)**: Scripts de migración SQL para la carga masiva desde plantillas oficiales de Excel.
-- **Testing & Docker Ready**: Pruebas automatizadas con `Vitest` + `Supertest` y contenedorización multi-etapa en Alpine.
+- **Testing & Docker Ready**: Suite de pruebas automatizadas con `Vitest` + `Supertest` y contenedorización multi-etapa en Alpine.
 
 ---
 
@@ -31,17 +36,17 @@ node-supabase-app/
 ├── Dockerfile           # Configuración multi-stage para Docker
 ├── src/                 # Código fuente de la API
 │   ├── config/          # Cliente de Supabase e inicialización de env
-│   ├── controllers/     # Controladores HTTP (Proyecciones, Tiendas, Rubros)
-│   ├── middlewares/     # Manejo global de errores y validaciones Zod
-│   ├── routes/          # Rutas API v1 (/api/v1/projections)
-│   ├── schemas/         # Esquemas de validación Zod (projection.schema.ts)
-│   ├── services/        # Lógica de negocio y consultas Supabase (projection.service.ts)
-│   ├── types/           # Interfaces TypeScript (projection.types.ts, database.types.ts)
+│   ├── controllers/     # Controladores HTTP (Admin, Proyecciones, Tiendas, Rubros)
+│   ├── middlewares/     # Middlewares de Auth JWT, Scope RBAC y Audit Interceptor
+│   ├── routes/          # Rutas API v1 (/api/v1/sales-projections, /api/users, /api/scopes, /api/audit)
+│   ├── schemas/         # Esquemas de validación Zod (admin.schema.ts, projection.schema.ts)
+│   ├── services/        # Lógica de negocio y consultas Supabase (admin.service.ts, pnlService.ts)
+│   ├── types/           # Interfaces TypeScript (database.types.ts, projection.types.ts)
 │   ├── app.ts           # Configuración de Express y CORS
 │   └── server.ts        # Punto de entrada del servidor Node
 ├── supabase/            # Migraciones DDL/DML y configuraciones locales
 │   └── migrations/      # Historial de migraciones SQL estructurado
-├── tests/               # Pruebas automatizadas
+├── tests/               # Pruebas automatizadas (Admin, Auth, Scopes, Audit, Projections)
 ├── package.json         # Scripts de compilación y dependencias
 └── tsconfig.json        # Configuración de compilación TypeScript
 ```
@@ -50,53 +55,33 @@ node-supabase-app/
 
 ## 🗄️ Historial Reciente de Migraciones SQL (`supabase/migrations`)
 
-| Fecha / Timestamp | Archivo de Migración | Descripción de los Cambios |
+| Timestamp | Archivo de Migración | Descripción de los Cambios |
 | :--- | :--- | :--- |
 | `2026-07-22` | `20260722120000_create_kfc_projections_module.sql` | Estructura base Master-Detail y semilla de catálogo de cuentas P&L. |
 | `2026-07-28` | `20260728100000_update_stores_table_structure.sql` | Reestructuración de `stores` a `store_uid VARCHAR(100)` y actualización de FKs. |
 | `2026-07-28` | `20260728110000_insert_real_stores_data.sql` | Inserción masiva de los 143 locales oficiales KFC Ecuador. |
-| `2026-07-28` | `20260728120000_insert_additional_stores_and_h001ecu_projections.sql` | Registro de 24 tiendas adicionales (islas de helados y oficinas). |
-| `2026-07-28` | `20260728130000_add_net_sales_to_projection_details.sql` | Ajuste idempotente para garantizar la presencia de 'Ventas Netas'. |
-| `2026-07-28` | `20260728140000_insert_complete_h001_excel_data.sql` | Ingestión automatizada de los 12 meses P&L para `H001ECU` desde Excel. |
-
----
-
-## 🛠️ Requisitos Previos
-
-- [Node.js](https://nodejs.org/) (v22.x recomendado)
-- CLI de [Supabase](https://supabase.com/docs/guides/cli)
-- [Docker](https://www.docker.com/) (Para base de datos local)
+| `2026-08-01` | `20260801_phase1_sales_and_pnl_schema.sql` | Esquema de proyecciones diarias de ventas por canal y mensuales. |
+| `2026-08-18` | `20260818100000_create_rbac_modules_user_scopes_audit.sql` | Tablas DDL RBAC (`modules`, `user_profiles`, `user_module_scopes`, `audit_logs`). |
+| `2026-08-19` | `20260819090000_create_rls_policies_and_scope_helper.sql` | Función PL/pgSQL `fn_has_module_store_access()` y políticas RLS. |
+| `2026-08-19` | `20260819100000_seed_rbac_initial_data.sql` | Seeding de usuarios semilla demo con contraseñas encriptadas. |
 
 ---
 
 ## 💻 Instalación y Desarrollo Local
 
-1. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
-
-2. **Iniciar Supabase Local**
-   ```bash
-   npx supabase start
-   npx supabase db reset
-   ```
-
-3. **Ejecutar el Servidor API en Desarrollo**
-   ```bash
-   npm run dev
-   ```
-
-4. **Desplegar Migraciones al Servidor Remoto (Producción)**
-   ```bash
-   npx supabase db push --db-url "postgresql://<user>:<pass>@<host>:5432/postgres" --include-all
-   ```
-
----
-
-## 📦 Compilación para Producción
-
 ```bash
+# Instalar dependencias
+npm install
+
+# Iniciar servidor de desarrollo en Node (TSX)
+npm run dev
+
+# Ejecutar suite de pruebas de integración (Vitest / Supertest)
+npm run test
+
+# Verificación de tipos TypeScript
+npm run typecheck
+
+# Compilar para producción
 npm run build
-npm run start
 ```
