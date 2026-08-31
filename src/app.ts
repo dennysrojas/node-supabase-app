@@ -4,6 +4,7 @@ import productRoutes from "./routes/product.routes.js";
 import projectionRouter from "./routes/projection.routes.js";
 import salesProjectionsRouter from "./routes/salesProjections.routes.js";
 import { userRoutes, scopeRoutes, auditRoutes } from "./routes/admin.routes.js";
+import { auditCommentRoutes } from "./routes/auditComment.routes.js";
 import { auditInterceptorMiddleware } from "./middlewares/auditInterceptor.middleware.js";
 
 export const app = express();
@@ -56,6 +57,8 @@ app.use("/api/scopes", scopeRoutes);
 app.use("/api/v1/scopes", scopeRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/v1/audit", auditRoutes);
+app.use("/api/audit-comments", auditCommentRoutes);
+app.use("/api/v1/audit-comments", auditCommentRoutes);
 
 // Handler global para rutas no encontradas (404)
 app.use((_req, res) => {
