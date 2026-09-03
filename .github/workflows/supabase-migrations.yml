@@ -15,15 +15,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
         with:
-          node-version: 22
+          version: latest
+
+      - name: Verify Required Secrets
+        run: |
+          MISSING=0
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "::error::El secret SUPABASE_ACCESS_TOKEN no está configurado en GitHub Secrets."
+            MISSING=1
+          fi
+          if [ -z "${{ secrets.SUPABASE_PROJECT_ID }}" ]; then
+            echo "::error::El secret SUPABASE_PROJECT_ID no está configurado en GitHub Secrets."
+            MISSING=1
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "::error::El secret SUPABASE_DB_PASSWORD no está configurado en GitHub Secrets."
+            MISSING=1
+          fi
+          if [ $MISSING -eq 1 ]; then
+            echo "::error::Por favor configura los secretos requeridos en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
 
       - name: Deploy Migrations to Supabase Cloud
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          npx supabase@latest link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} -p "$SUPABASE_DB_PASSWORD"
-          npx supabase@latest db push --password "$SUPABASE_DB_PASSWORD"
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --password "$SUPABASE_DB_PASSWORD"
