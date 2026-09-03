@@ -92,9 +92,9 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       mockOrder.mockResolvedValueOnce({ data: mockCatalog, error: null });
 
-      const response = await request(app).get(
-        "/api/v1/projections/account-items",
-      );
+      const response = await request(app)
+        .get("/api/v1/projections/account-items")
+        .set("Authorization", "Bearer mock-token-admin");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -119,7 +119,9 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       mockOrder.mockResolvedValueOnce({ data: mockStores, error: null });
 
-      const response = await request(app).get("/api/v1/projections/stores");
+      const response = await request(app)
+        .get("/api/v1/projections/stores")
+        .set("Authorization", "Bearer mock-token-admin");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -168,6 +170,7 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       const response = await request(app)
         .post("/api/v1/projections")
+        .set("Authorization", "Bearer mock-token-admin")
         .send(validPayload);
 
       expect(response.status).toBe(201);
@@ -186,6 +189,7 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       const response = await request(app)
         .post("/api/v1/projections")
+        .set("Authorization", "Bearer mock-token-admin")
         .send(invalidPayload);
 
       expect(response.status).toBe(400);
@@ -244,6 +248,7 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       const response = await request(app)
         .get(`/api/v1/projections/store/${storeId}`)
+        .set("Authorization", "Bearer mock-token-admin")
         .query({ year: 2026, month: 7, scenario: "BASE" });
 
       expect(response.status).toBe(200);
@@ -260,11 +265,23 @@ describe("Módulo de Proyecciones Financieras - API Tests", () => {
 
       const response = await request(app)
         .get(`/api/v1/projections/store/${storeId}`)
+        .set("Authorization", "Bearer mock-token-admin")
         .query({ year: 2026, month: 12, scenario: "BASE" });
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
       expect(response.body.message).toContain("No se encontró proyección");
+    });
+
+    it("Debe retornar 403 Forbidden cuando el usuario no tiene alcance sobre la tienda (BOLA/IDOR)", async () => {
+      const response = await request(app)
+        .get(`/api/v1/projections/store/${storeId}`)
+        .set("Authorization", "Bearer mock-token-forbidden")
+        .query({ year: 2026, month: 7, scenario: "BASE" });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain("Acceso denegado");
     });
   });
 });

@@ -36,14 +36,20 @@ export function requireModuleScope(
         return;
       }
 
-      // 2. Extraer la tienda objetivo desde params, query o body
+      // 2. Extraer la tienda objetivo desde params, query o body (soporta camelCase y snake_case)
       const storeUid = (
         req.params.store_id ||
         req.params.store_uid ||
+        req.params.storeId ||
+        req.params.storeUid ||
         req.query.store_id ||
         req.query.store_uid ||
-        req.body.store_id ||
-        req.body.store_uid ||
+        req.query.storeId ||
+        req.query.storeUid ||
+        req.body?.store_id ||
+        req.body?.store_uid ||
+        req.body?.storeId ||
+        req.body?.storeUid ||
         null
       ) as string | null;
 

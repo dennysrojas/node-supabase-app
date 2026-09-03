@@ -10,29 +10,35 @@ import { auditInterceptorMiddleware } from "./middlewares/auditInterceptor.middl
 
 export const app = express();
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
   "http://localhost:5173",
   "http://localhost:5174",
   "https://kfc-projections-frontend.vercel.app",
   "https://trd-projections-frontend.vercel.app",
-];
+]);
+
+// Expresión regular estricta para deployments de preview autorizados del equipo TRD
+const allowedPreviewPattern =
+  /^https:\/\/(?:[a-zA-Z0-9_-]+-)?(?:kfc-projections|trd-projections)-[a-zA-Z0-9_-]+\.vercel\.app$/;
 
 // Middlewares globales
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Si no hay origen (ej. Postman) o si está en la lista de permitidos o es un subdominio de Vercel
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app")
-      ) {
-        callback(null, true);
-      } else {
-        callback(new Error("Bloqueado por CORS"));
+      // Permitir peticiones sin origen (ej. herramientas internas, curl, server-to-server)
+      if (!origin) {
+        return callback(null, true);
       }
+
+      if (allowedOrigins.has(origin) || allowedPreviewPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Acceso bloqueado por política de CORS"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
@@ -77,8 +83,12 @@ app.use(
     _next: express.NextFunction,
   ) => {
     console.error("❌ Error no capturado:", err);
-    const message =
-      err instanceof Error ? err.message : "Error interno del servidor";
+    const isProduction = process.env.NODE_ENV === "production";
+    const message = isProduction
+      ? "Error interno del servidor"
+      : err instanceof Error
+        ? err.message
+        : "Error interno del servidor";
     res.status(500).json({ success: false, error: message });
   },
 );

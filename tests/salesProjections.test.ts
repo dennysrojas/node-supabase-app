@@ -86,9 +86,9 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
         error: null,
       });
 
-      const response = await request(app).get(
-        "/api/v1/sales-projections/config/brand/kfc",
-      );
+      const response = await request(app)
+        .get("/api/v1/sales-projections/config/brand/kfc")
+        .set("Authorization", "Bearer mock-token-capturador");
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -101,9 +101,9 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
         error: { message: "Not found" },
       });
 
-      const response = await request(app).get(
-        "/api/v1/sales-projections/config/brand/invalid",
-      );
+      const response = await request(app)
+        .get("/api/v1/sales-projections/config/brand/invalid")
+        .set("Authorization", "Bearer mock-token-capturador");
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);
@@ -113,7 +113,9 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
 
   describe("2. GET & POST /api/v1/sales-projections/daily", () => {
     it("GET /daily debe retornar HTTP 400 si faltan parámetros requeridos", async () => {
-      const response = await request(app).get("/api/v1/sales-projections/daily");
+      const response = await request(app)
+        .get("/api/v1/sales-projections/daily")
+        .set("Authorization", "Bearer mock-token-capturador");
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
     });
@@ -126,6 +128,7 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
 
       const response = await request(app)
         .get("/api/v1/sales-projections/daily")
+        .set("Authorization", "Bearer mock-token-capturador")
         .query({ store_id: "store-1", year: 2026, month: 8 });
 
       expect(response.status).toBe(200);
@@ -133,9 +136,21 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
       expect(response.body.data).toHaveLength(1);
     });
 
+    it("GET /daily debe retornar HTTP 403 cuando el usuario no tiene alcance en la tienda (BOLA/IDOR)", async () => {
+      const response = await request(app)
+        .get("/api/v1/sales-projections/daily")
+        .set("Authorization", "Bearer mock-token-forbidden")
+        .query({ store_id: "store-1", year: 2026, month: 8 });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain("Acceso denegado");
+    });
+
     it("POST /daily/upsert debe rechazar payload si faltan campos obligatorios", async () => {
       const response = await request(app)
         .post("/api/v1/sales-projections/daily/upsert")
+        .set("Authorization", "Bearer mock-token-capturador")
         .send({ store_id: "store-1" });
 
       expect(response.status).toBe(400);
@@ -153,6 +168,7 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
 
       const response = await request(app)
         .post("/api/v1/sales-projections/lock")
+        .set("Authorization", "Bearer mock-token-supervisor")
         .send({ store_id: "store-1", year: 2026, target_module: "SALES" });
 
       expect(response.status).toBe(200);
@@ -163,12 +179,12 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
     it("POST /unlock debe rechazar (HTTP 403) si el rol no es SUPERVISOR o ADMIN", async () => {
       const response = await request(app)
         .post("/api/v1/sales-projections/unlock")
-        .set("x-user-role", "USER")
+        .set("Authorization", "Bearer mock-token-capturador")
         .send({ store_id: "store-1", year: 2026, target_module: "SALES" });
 
       expect(response.status).toBe(403);
       expect(response.body.success).toBe(false);
-      expect(response.body.message).toContain("Acceso denegado");
+      expect(response.body.error).toContain("Acceso denegado");
     });
 
     it("POST /unlock debe permitir desbloqueo (HTTP 200) si el rol es SUPERVISOR", async () => {
@@ -180,7 +196,7 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
 
       const response = await request(app)
         .post("/api/v1/sales-projections/unlock")
-        .set("x-user-role", "SUPERVISOR")
+        .set("Authorization", "Bearer mock-token-supervisor")
         .send({ store_id: "store-1", year: 2026, target_module: "SALES" });
 
       expect(response.status).toBe(200);

@@ -57,13 +57,48 @@ export function auditInterceptorMiddleware(
 
       const actionName = `${method}_${req.baseUrl || ''}${req.path}`.replace(/\/+/g, '_');
 
-      // Extraer payload nuevo y anterior si estuviera presente
-      const payloadNew = req.body ? { ...req.body } : null;
-      if (payloadNew && payloadNew.password) {
-        payloadNew.password = '[REDACTED]';
-      }
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'token',
+  'secret',
+  'authorization',
+  'credit_card',
+  'creditcard',
+  'apikey',
+  'api_key',
+  'access_token',
+  'refresh_token',
+  'cvv',
+  'pin',
+]);
 
-      const payloadOld = req.body?.previous_data || req.body?.old_payload || null;
+function sanitizePayload(data: unknown): unknown {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizePayload(item));
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+      sanitized[key] = '[REDACTED]';
+    } else if (value && typeof value === 'object') {
+      sanitized[key] = sanitizePayload(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+      // Extraer payload nuevo y anterior si estuviera presente, con sanitización recursiva
+      const payloadNew = req.body ? (sanitizePayload(req.body) as Record<string, unknown>) : null;
+      const payloadOld = req.body?.previous_data || req.body?.old_payload
+        ? (sanitizePayload(req.body?.previous_data || req.body?.old_payload) as Record<string, unknown>)
+        : null;
 
       AdminService.logAudit({
         user_id: req.user?.id || req.userProfile?.id,

@@ -83,6 +83,7 @@ describe("Pruebas de Estrés de Integridad y Concurrencia (Backend REST API)", (
       const requests = Array.from({ length: 50 }, () =>
         request(app)
           .post("/api/v1/sales-projections/daily/upsert")
+          .set("Authorization", "Bearer mock-token-capturador")
           .send(payload)
       );
 
@@ -113,11 +114,11 @@ describe("Pruebas de Estrés de Integridad y Concurrencia (Backend REST API)", (
       const [lockRes, unlockRes] = await Promise.all([
         request(app)
           .post("/api/v1/sales-projections/lock")
-          .set("x-user-role", "SUPERVISOR")
+          .set("Authorization", "Bearer mock-token-supervisor")
           .send(lockPayload),
         request(app)
           .post("/api/v1/sales-projections/unlock")
-          .set("x-user-role", "SUPERVISOR")
+          .set("Authorization", "Bearer mock-token-supervisor")
           .send(lockPayload),
       ]);
 

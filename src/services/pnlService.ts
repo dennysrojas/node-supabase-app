@@ -31,7 +31,26 @@ export const getConsolidatedNetSalesFromSalesModule = async (storeId: string, ye
   for (let m = 1; m <= 12; m++) monthlyNetSalesMap[m] = 0;
 
   if (isDaily) {
-    // Sumar ventas diarias agregadas por mes
+    // 0. Intentar agregación directa en PostgreSQL vía función RPC (3.1)
+    try {
+      if (typeof (supabase as any).rpc === 'function') {
+        const { data: aggregated, error: rpcError } = await (supabase as any).rpc(
+          'fn_get_monthly_sales_aggregated',
+          { p_store_id: storeId, p_year: year }
+        );
+
+        if (!rpcError && Array.isArray(aggregated) && aggregated.length > 0) {
+          aggregated.forEach((row: { month: number; net_sales: number }) => {
+            monthlyNetSalesMap[row.month] = Number(row.net_sales) || 0;
+          });
+          return monthlyNetSalesMap;
+        }
+      }
+    } catch {
+      // Fallback si la función RPC aún no está disponible
+    }
+
+    // Fallback: Sumar ventas diarias agregadas por mes
     const { data: dailySales } = await supabase
       .from('sales_projections_daily')
       .select('month, net_sales')

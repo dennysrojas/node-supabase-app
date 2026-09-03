@@ -1,11 +1,15 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, RequestHandler } from "express";
 import { supabase } from "../config/supabase.js";
+import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth.middleware.js";
 import { requireObservationRole } from "../middlewares/observationAuth.middleware.js";
 
 export const observationRouter = Router();
 
+// Aplicar autenticación JWT a todas las rutas de observaciones
+observationRouter.use(authMiddleware as RequestHandler);
+
 // 1. GET /api/v1/observations - Obtener observaciones con filtros
-observationRouter.get("/", async (req: Request, res: Response) => {
+observationRouter.get("/", (async (req: Request, res: Response) => {
   try {
     const { store_id, year, month, module_code, status, cell_key } = req.query;
 
@@ -24,21 +28,30 @@ observationRouter.get("/", async (req: Request, res: Response) => {
     const { data, error } = await query;
 
     if (error) {
-      return res.status(200).json({ success: true, data: [] });
+      console.error("❌ Error al consultar observaciones en Supabase:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
     }
 
     return res.status(200).json({ success: true, data: data || [] });
-  } catch {
-    return res.status(200).json({ success: true, data: [] });
+  } catch (err: unknown) {
+    console.error("❌ Excepción no controlada en GET /observations:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Error interno al procesar la solicitud en el servidor",
+    });
   }
-});
+}) as RequestHandler);
 
 // 2. POST /api/v1/observations - Crear un nuevo hallazgo / observación (Auditor, Supervisor, Admin)
 observationRouter.post(
   "/",
   requireObservationRole(["AUDITOR", "SUPERVISOR", "ADMIN_GLOBAL"]),
-  async (req: Request, res: Response) => {
+  (async (req: Request, res: Response) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { store_id, year, month, module_code, cell_key, title, description, severity } = req.body;
 
       if (!store_id || !year || !month || !module_code || !title || !description) {
@@ -48,8 +61,9 @@ observationRouter.post(
         });
       }
 
-      const userEmail = (req.headers["x-user-email"] as string) || "auditor.finanzas@trd.com";
-      const userRole = (req.headers["x-user-role"] as string) || "AUDITOR";
+      const userEmail = authReq.userProfile?.email || authReq.user?.email || "auditor@trd.com";
+      const userRole = authReq.userProfile?.global_role || "AUDITOR";
+      const userId = authReq.user?.id || authReq.userProfile?.id;
 
       const newObs = {
         id: `obs-${Date.now()}`,
@@ -62,7 +76,7 @@ observationRouter.post(
         description: String(description).trim(),
         severity: severity || "WARNING",
         status: "OPEN",
-        created_by_id: "00000000-0000-0000-0000-000000000004",
+        created_by_id: userId,
         created_by_email: userEmail,
         created_by_role: userRole,
         created_at: new Date().toISOString(),
@@ -76,16 +90,29 @@ observationRouter.post(
         .select("*")
         .single();
 
-      return res.status(201).json({ success: true, data: data || newObs });
-    } catch {
-      return res.status(400).json({ success: false, error: "Error al crear la observación" });
+      if (error) {
+        console.error("❌ Error al persistir observación en Supabase:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Error interno al procesar la solicitud en el servidor",
+        });
+      }
+
+      return res.status(201).json({ success: true, data });
+    } catch (err: unknown) {
+      console.error("❌ Excepción no controlada en POST /observations:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
     }
-  }
+  }) as RequestHandler
 );
 
 // 3. POST /api/v1/observations/:id/threads - Responder o Subsanar en el hilo
-observationRouter.post("/:id/threads", async (req: Request, res: Response) => {
+observationRouter.post("/:id/threads", (async (req: Request, res: Response) => {
   try {
+    const authReq = req as AuthenticatedRequest;
     const { id } = req.params;
     const { message, attachment_url, action_taken } = req.body;
 
@@ -93,13 +120,32 @@ observationRouter.post("/:id/threads", async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "El mensaje es obligatorio" });
     }
 
-    const userEmail = (req.headers["x-user-email"] as string) || "capturador.kfc1@trd.com";
-    const userRole = (req.headers["x-user-role"] as string) || "CAPTURADOR";
+    // NEW-02: Validar inmutabilidad de expedientes cerrados
+    const { data: existingObs, error: findError } = await supabase
+      .from("record_observations")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (findError || !existingObs) {
+      return res.status(404).json({ success: false, error: "Observación no encontrada" });
+    }
+
+    if (existingObs.status === "CLOSED") {
+      return res.status(422).json({
+        success: false,
+        error: "Operación rechazada: El expediente se encuentra CERRADO (inmutable)",
+      });
+    }
+
+    const userEmail = authReq.userProfile?.email || authReq.user?.email || "usuario@trd.com";
+    const userRole = authReq.userProfile?.global_role || "CAPTURADOR";
+    const userId = authReq.user?.id || authReq.userProfile?.id;
 
     const newThread = {
       id: `th-${Date.now()}`,
       observation_id: id,
-      user_id: "00000000-0000-0000-0000-000000000003",
+      user_id: userId,
       user_email: userEmail,
       user_role: userRole,
       message: String(message).trim(),
@@ -122,20 +168,54 @@ observationRouter.post("/:id/threads", async (req: Request, res: Response) => {
       .select("*")
       .single();
 
-    return res.status(201).json({ success: true, data: data || newThread });
-  } catch {
-    return res.status(400).json({ success: false, error: "Error al registrar respuesta en el hilo" });
+    if (error) {
+      console.error("❌ Error al persistir hilo en Supabase:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
+    }
+
+    return res.status(201).json({ success: true, data });
+  } catch (err: unknown) {
+    console.error("❌ Excepción no controlada en POST /observations/:id/threads:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Error interno al procesar la solicitud en el servidor",
+    });
   }
-});
+}) as RequestHandler);
 
 // 4. PATCH /api/v1/observations/:id/status - Cambiar estado (OPEN -> IN_REVIEW -> RESOLVED)
 observationRouter.patch(
   "/:id/status",
   requireObservationRole(["AUDITOR", "SUPERVISOR", "ADMIN_GLOBAL"]),
-  async (req: Request, res: Response) => {
+  (async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ success: false, error: "El estado es requerido" });
+      }
+
+      // NEW-02: Validar inmutabilidad de expedientes cerrados
+      const { data: existingObs, error: findError } = await supabase
+        .from("record_observations")
+        .select("status")
+        .eq("id", id)
+        .single();
+
+      if (findError || !existingObs) {
+        return res.status(404).json({ success: false, error: "Observación no encontrada" });
+      }
+
+      if (existingObs.status === "CLOSED") {
+        return res.status(422).json({
+          success: false,
+          error: "Operación rechazada: El expediente se encuentra CERRADO (inmutable)",
+        });
+      }
 
       const { data, error } = await supabase
         .from("record_observations")
@@ -145,24 +225,52 @@ observationRouter.patch(
         .single();
 
       if (error) {
-        return res.status(200).json({ success: true, data: { id, status } });
+        console.error("❌ Error al actualizar estado en Supabase:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Error interno al procesar la solicitud en el servidor",
+        });
       }
 
       return res.status(200).json({ success: true, data });
-    } catch {
-      return res.status(400).json({ success: false, error: "Error al actualizar estado de observacion" });
+    } catch (err: unknown) {
+      console.error("❌ Excepción no controlada en PATCH /observations/:id/status:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
     }
-  }
+  }) as RequestHandler
 );
 
 // 5. PATCH /api/v1/observations/:id/close - Cerrar atómicamente la observación (Auditor / Supervisor)
 observationRouter.patch(
   "/:id/close",
   requireObservationRole(["AUDITOR", "SUPERVISOR", "ADMIN_GLOBAL"]),
-  async (req: Request, res: Response) => {
+  (async (req: Request, res: Response) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const userEmail = (req.headers["x-user-email"] as string) || "auditor.finanzas@trd.com";
+
+      // Validar si la observación existe y si ya está cerrada
+      const { data: existingObs, error: findError } = await supabase
+        .from("record_observations")
+        .select("status")
+        .eq("id", id)
+        .single();
+
+      if (findError || !existingObs) {
+        return res.status(404).json({ success: false, error: "Observación no encontrada" });
+      }
+
+      if (existingObs.status === "CLOSED") {
+        return res.status(422).json({
+          success: false,
+          error: "Operación rechazada: El expediente ya se encuentra CERRADO",
+        });
+      }
+
+      const userEmail = authReq.userProfile?.email || authReq.user?.email || "auditor@trd.com";
 
       const payload = {
         status: "CLOSED",
@@ -179,12 +287,20 @@ observationRouter.patch(
         .single();
 
       if (error) {
-        return res.status(200).json({ success: true, data: { id, status: "CLOSED" } });
+        console.error("❌ Error al cerrar observación en Supabase:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Error interno al procesar la solicitud en el servidor",
+        });
       }
 
       return res.status(200).json({ success: true, data });
-    } catch {
-      return res.status(400).json({ success: false, error: "Error al cerrar la observacion" });
+    } catch (err: unknown) {
+      console.error("❌ Excepción no controlada en PATCH /observations/:id/close:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
     }
-  }
+  }) as RequestHandler
 );

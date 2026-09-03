@@ -22,6 +22,40 @@ export class ProjectionService {
       details,
     } = dto;
 
+    // 0. Intentar persistencia transaccional ACID vía RPC en PostgreSQL (SEC-05)
+    try {
+      if (typeof (supabase as any).rpc === "function") {
+        const { data: rpcHeaderId, error: rpcError } = await (supabase as any).rpc(
+          "fn_save_complete_projection",
+          {
+            p_store_id: store_id,
+            p_period_year: period_year,
+            p_period_month: period_month,
+            p_scenario: scenario,
+            p_total_sales_net: total_sales_net,
+            p_result_before_depreciation: result_before_depreciation,
+            p_user_id: userId || null,
+            p_details: details,
+          },
+        );
+
+        if (!rpcError && rpcHeaderId) {
+          return {
+            id: rpcHeaderId,
+            store_id,
+            period_year,
+            period_month,
+            scenario,
+            total_sales_net: Number(total_sales_net),
+            result_before_depreciation: Number(result_before_depreciation),
+            created_at: new Date().toISOString(),
+          };
+        }
+      }
+    } catch {
+      // Fallback a flujo multi-paso si la función RPC no está desplegada en el entorno
+    }
+
     // 1. Inserción o actualización idempotente de la cabecera (Upsert)
     const { data: header, error: headerError } = await supabase
       .from("projection_headers")

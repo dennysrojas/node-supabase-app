@@ -1,7 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { AdminController } from '../controllers/admin.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { requireModuleScope } from '../middlewares/scope.middleware.js';
+import { authMiddleware, requireGlobalRole } from '../middlewares/auth.middleware.js';
 
 export const userRoutes = Router();
 export const scopeRoutes = Router();
@@ -13,28 +12,28 @@ export const auditRoutes = Router();
 userRoutes.get(
   '/',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
   AdminController.listUsers as RequestHandler
 );
 
 userRoutes.get(
   '/:id',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
   AdminController.getUserById as RequestHandler
 );
 
 userRoutes.post(
   '/',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL']) as RequestHandler,
   AdminController.createUser as RequestHandler
 );
 
 userRoutes.put(
   '/:id',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL']) as RequestHandler,
   AdminController.updateUser as RequestHandler
 );
 
@@ -44,21 +43,21 @@ userRoutes.put(
 scopeRoutes.get(
   '/',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
   AdminController.listScopes as RequestHandler
 );
 
 scopeRoutes.post(
   '/',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
   AdminController.assignScope as RequestHandler
 );
 
 scopeRoutes.delete(
   '/:id',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
   AdminController.revokeScope as RequestHandler
 );
 
@@ -68,6 +67,6 @@ scopeRoutes.delete(
 auditRoutes.get(
   '/',
   authMiddleware as RequestHandler,
-  requireModuleScope('SALES', ['ADMIN_GLOBAL', 'SUPERVISOR', 'AUDITOR']) as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR', 'AUDITOR']) as RequestHandler,
   AdminController.queryAuditLogs as RequestHandler
 );

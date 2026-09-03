@@ -1,27 +1,14 @@
 import { Router, Request, Response, RequestHandler } from 'express';
 import { supabase } from '../config/supabase.js';
+import { authMiddleware, AuthenticatedRequest } from '../middlewares/auth.middleware.js';
+import { requireModuleScope } from '../middlewares/scope.middleware.js';
 
 const router = Router();
-
-/**
- * Middleware auxiliar para verificar rol de Supervisor/Admin para desbloqueo
- */
-const requireSupervisorRole: RequestHandler = async (req: Request, res: Response, next) => {
-  const userRole = (req.headers['x-user-role'] as string) || 'USER';
-  if (userRole !== 'SUPERVISOR' && userRole !== 'ADMIN') {
-    res.status(403).json({
-      success: false,
-      message: 'Acceso denegado: Solo los usuarios con rol SUPERVISOR o ADMIN pueden desbloquear proyecciones.'
-    });
-    return;
-  }
-  next();
-};
 
 // =============================================================================
 // 1. T1.1 - OBTENER CONFIGURACIÓN DE MARCA (brand_config)
 // =============================================================================
-router.get('/config/brand/:brandCode', (async (req: Request, res: Response) => {
+router.get('/config/brand/:brandCode', authMiddleware as RequestHandler, (async (req: Request, res: Response) => {
   try {
     const { brandCode } = req.params;
     const { data, error } = await supabase
@@ -44,7 +31,11 @@ router.get('/config/brand/:brandCode', (async (req: Request, res: Response) => {
 // =============================================================================
 // 2. T1.2 - CONSULTAR Y GUARDAR VENTAS DIARIAS (KFC)
 // =============================================================================
-router.get('/daily', (async (req: Request, res: Response) => {
+router.get(
+  '/daily',
+  authMiddleware as RequestHandler,
+  requireModuleScope('SALES', ['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL', 'AUDITOR']) as RequestHandler,
+  (async (req: Request, res: Response) => {
   try {
     const { store_id, year, month } = req.query;
 
@@ -69,7 +60,11 @@ router.get('/daily', (async (req: Request, res: Response) => {
   }
 }) as RequestHandler);
 
-router.post('/daily/upsert', (async (req: Request, res: Response) => {
+router.post(
+  '/daily/upsert',
+  authMiddleware as RequestHandler,
+  requireModuleScope('SALES', ['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL']) as RequestHandler,
+  (async (req: Request, res: Response) => {
   try {
     const { store_id, year, month, days_data, tax_discount_pct } = req.body;
 
@@ -143,7 +138,11 @@ router.post('/daily/upsert', (async (req: Request, res: Response) => {
 // =============================================================================
 // 3. T1.2 - CONSULTAR Y GUARDAR VENTAS MENSUALES (CAJUN / FABRIL)
 // =============================================================================
-router.get('/monthly', (async (req: Request, res: Response) => {
+router.get(
+  '/monthly',
+  authMiddleware as RequestHandler,
+  requireModuleScope('SALES', ['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL', 'AUDITOR']) as RequestHandler,
+  (async (req: Request, res: Response) => {
   try {
     const { store_id, year } = req.query;
 
@@ -167,7 +166,11 @@ router.get('/monthly', (async (req: Request, res: Response) => {
   }
 }) as RequestHandler);
 
-router.post('/monthly/upsert', (async (req: Request, res: Response) => {
+router.post(
+  '/monthly/upsert',
+  authMiddleware as RequestHandler,
+  requireModuleScope('SALES', ['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL']) as RequestHandler,
+  (async (req: Request, res: Response) => {
   try {
     const { store_id, year, months_data, tax_discount_pct } = req.body;
 
@@ -213,10 +216,14 @@ router.post('/monthly/upsert', (async (req: Request, res: Response) => {
 // =============================================================================
 // 4. T1.3 - ENDPOINTS DE ASENTAMIENTO / BLOQUEO (LOCK / UNLOCK)
 // =============================================================================
-router.post('/lock', (async (req: Request, res: Response) => {
-  try {
-    const { store_id, year, target_module } = req.body; // target_module: 'SALES' | 'PYG'
-    const userId = (req.headers['x-user-id'] as string) || null;
+router.post(
+  '/lock',
+  authMiddleware as RequestHandler,
+  requireModuleScope('SALES', ['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL']) as RequestHandler,
+  (async (req: Request, res: Response) => {
+    try {
+      const { store_id, year, target_module } = req.body; // target_module: 'SALES' | 'PYG'
+      const userId = (req as AuthenticatedRequest).user?.id || null;
 
     if (target_module === 'SALES') {
       await supabase
@@ -253,7 +260,11 @@ router.post('/lock', (async (req: Request, res: Response) => {
   }
 }) as RequestHandler);
 
-router.post('/unlock', requireSupervisorRole, (async (req: Request, res: Response) => {
+router.post(
+  '/unlock',
+  authMiddleware as RequestHandler,
+  requireModuleScope('SALES', ['SUPERVISOR', 'ADMIN_GLOBAL']) as RequestHandler,
+  (async (req: Request, res: Response) => {
   try {
     const { store_id, year, target_module } = req.body;
 

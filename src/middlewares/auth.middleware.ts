@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import type { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../config/supabase.js';
 
@@ -106,5 +106,41 @@ export async function authMiddleware(
       error: 'No autorizado' 
     });
   }
+}
+
+/**
+ * Middleware factory para validar autorización basada en el rol global del usuario
+ * independientemente del módulo de negocio asignado.
+ */
+export function requireGlobalRole(
+  allowedRoles: Array<UserProfile['global_role']>
+): RequestHandler {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    if (!req.user || !req.userProfile) {
+      res.status(401).json({
+        success: false,
+        error: 'No autorizado: Se requiere sesión válida y perfil de usuario'
+      });
+      return;
+    }
+
+    if (!req.userProfile.is_active) {
+      res.status(403).json({
+        success: false,
+        error: 'Acceso denegado: Usuario inactivo en el sistema'
+      });
+      return;
+    }
+
+    if (!allowedRoles.includes(req.userProfile.global_role)) {
+      res.status(403).json({
+        success: false,
+        error: `Acceso denegado: Se requiere uno de los siguientes roles globales: ${allowedRoles.join(', ')}`
+      });
+      return;
+    }
+
+    next();
+  };
 }
 
