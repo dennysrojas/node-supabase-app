@@ -4,6 +4,7 @@ import {
   createUserSchema,
   updateUserSchema,
   assignScopeSchema,
+  assignBulkScopesSchema,
   queryAuditLogsSchema
 } from '../schemas/admin.schema.js';
 import type { ScopedRequest } from '../middlewares/scope.middleware.js';
@@ -148,6 +149,35 @@ export class AdminController {
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al asignar alcance';
+      res.status(500).json({ success: false, error: message });
+    }
+  }
+
+  /**
+   * POST /api/v1/scopes/bulk (o /api/scopes/bulk)
+   */
+  static async assignBulkScopes(req: ScopedRequest, res: Response): Promise<void> {
+    try {
+      const parseResult = assignBulkScopesSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          success: false,
+          error: 'Payload inválido',
+          details: parseResult.error.errors
+        });
+        return;
+      }
+
+      const assignedByUserId = req.user?.id;
+      const scopes = await AdminService.assignBulkScopes(parseResult.data, assignedByUserId);
+
+      res.status(201).json({
+        success: true,
+        message: 'Alcances asignados masivamente de forma atómica',
+        data: scopes
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al asignar alcances masivos';
       res.status(500).json({ success: false, error: message });
     }
   }

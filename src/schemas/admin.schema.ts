@@ -24,6 +24,15 @@ export const assignScopeSchema = z.object({
   role: appRoleEnum.optional().default('CAPTURADOR')
 });
 
+export const assignBulkScopesSchema = z.object({
+  user_id: z.string().min(1, { message: 'ID de usuario requerido' }),
+  module_code: appModuleEnum,
+  store_uids: z.array(z.string().min(1, { message: 'ID de tienda inválido' })).min(1, { message: 'Debe especificar al menos una tienda' }),
+  role: appRoleEnum.optional().default('CAPTURADOR')
+});
+
+export type AssignBulkScopesInput = z.infer<typeof assignBulkScopesSchema>;
+
 export const queryAuditLogsSchema = z.object({
   module_code: z.string().optional(),
   store_uid: z.string().optional(),

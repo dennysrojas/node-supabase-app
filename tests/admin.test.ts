@@ -175,6 +175,45 @@ describe('Suite de Pruebas API REST Admin - /api/users, /api/scopes, /api/audit'
       expect(res.body.success).toBe(true);
       expect(res.body.data.module_code).toBe('SALES');
     });
+
+    it('POST /api/scopes/bulk debe rechazar (400) si store_uids está vacío', async () => {
+      const res = await request(app)
+        .post('/api/scopes/bulk')
+        .set('Authorization', 'Bearer mock-token-admin-1')
+        .send({
+          user_id: 'usr-1',
+          module_code: 'SALES',
+          store_uids: []
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('POST /api/scopes/bulk debe asignar exitosamente (201) múltiples tiendas en una sola operación atómica (Eliminación N+1)', async () => {
+      mockSelect.mockReturnValue({
+        data: [
+          { id: 'sc-1', user_id: 'usr-1', module_code: 'SALES', store_uid: 'KFC-01', role: 'CAPTURADOR' },
+          { id: 'sc-2', user_id: 'usr-1', module_code: 'SALES', store_uid: 'KFC-02', role: 'CAPTURADOR' }
+        ],
+        error: null
+      });
+
+      const res = await request(app)
+        .post('/api/scopes/bulk')
+        .set('Authorization', 'Bearer mock-token-admin-1')
+        .send({
+          user_id: 'usr-1',
+          module_code: 'SALES',
+          store_uids: ['KFC-01', 'KFC-02'],
+          role: 'CAPTURADOR'
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.message).toContain('masivamente de forma atómica');
+    });
   });
 
   describe('3. Rutas de Auditoría (/api/audit)', () => {

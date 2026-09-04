@@ -21,6 +21,21 @@ const allowedOrigins = new Set([
 const allowedPreviewPattern =
   /^https:\/\/(?:[a-zA-Z0-9_-]+-)?(?:kfc-projections|trd-projections)-[a-zA-Z0-9_-]+\.vercel\.app$/;
 
+// Middlewares globales de seguridad HTTP (OWASP Secure Headers)
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://node-supabase-app.onrender.com https://*.supabase.co http://127.0.0.1:*; frame-ancestors 'none';"
+  );
+  next();
+});
+
 // Middlewares globales
 app.use(
   cors({

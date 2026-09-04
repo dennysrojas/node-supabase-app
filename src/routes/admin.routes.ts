@@ -54,6 +54,13 @@ scopeRoutes.post(
   AdminController.assignScope as RequestHandler
 );
 
+scopeRoutes.post(
+  '/bulk',
+  authMiddleware as RequestHandler,
+  requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as RequestHandler,
+  AdminController.assignBulkScopes as RequestHandler
+);
+
 scopeRoutes.delete(
   '/:id',
   authMiddleware as RequestHandler,

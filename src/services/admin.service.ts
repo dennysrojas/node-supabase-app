@@ -24,6 +24,13 @@ export interface AssignScopeData {
   role?: AppRoleType;
 }
 
+export interface AssignBulkScopesData {
+  user_id: string;
+  module_code: 'SALES' | 'PYG' | 'SURVEYS' | 'QUALITY';
+  store_uids: string[];
+  role?: AppRoleType;
+}
+
 export interface AuditFilterData {
   module_code?: string;
   store_uid?: string;
@@ -215,6 +222,43 @@ export class AdminService {
     });
 
     return data;
+  }
+
+  /**
+   * Asignar múltiples alcances en una única operación atómica (Eliminación de N+1)
+   */
+  static async assignBulkScopes(bulkData: AssignBulkScopesData, assignedByUserId?: string) {
+    const role = bulkData.role || 'CAPTURADOR';
+    const rows = bulkData.store_uids.map((storeUid) => ({
+      user_id: bulkData.user_id,
+      module_code: bulkData.module_code,
+      store_uid: storeUid,
+      role: role,
+      assigned_by: assignedByUserId ?? null
+    }));
+
+    const { data, error } = await supabaseAdmin
+      .from('user_module_scopes')
+      .upsert(rows)
+      .select();
+
+    if (error) {
+      throw new Error(`Error al asignar alcances masivos: ${error.message}`);
+    }
+
+    await this.logAudit({
+      user_id: assignedByUserId || bulkData.user_id,
+      module_code: bulkData.module_code,
+      action: 'BULK_SCOPES_ASSIGNED',
+      details: {
+        target_user_id: bulkData.user_id,
+        role,
+        store_count: bulkData.store_uids.length,
+        store_uids: bulkData.store_uids
+      }
+    });
+
+    return data || [];
   }
 
   /**
