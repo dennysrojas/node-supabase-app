@@ -17,10 +17,10 @@ jobs:
       - name: Checkout Código Fuente
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js 20.x
+      - name: Configurar Node.js 22.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
@@ -32,6 +32,12 @@ jobs:
 
       - name: Ejecutar Suite Completa de Pruebas de Integración (Vitest)
         run: npm test
+        env:
+          NODE_ENV: test
+          SUPABASE_URL: http://127.0.0.1:15421
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ci-mock-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ci-mock-service-role-key
+          PORT: 3000
 
       - name: Compilación para Producción (tsc)
         run: npm run build

@@ -25,10 +25,22 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const isTestEnv = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+
+const envToParse = {
+  ...process.env,
+  SUPABASE_URL: process.env.SUPABASE_URL || (isTestEnv ? 'http://127.0.0.1:15421' : undefined),
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || (isTestEnv ? 'mock-anon-key-test-environment' : undefined),
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || (isTestEnv ? 'mock-service-role-key-test-environment' : undefined),
+};
+
+const parsed = envSchema.safeParse(envToParse);
 
 if (!parsed.success) {
   console.error('❌ Error de validación en variables de entorno:', JSON.stringify(parsed.error.format(), null, 2));
+  if (isTestEnv) {
+    throw new Error('Configuración de entorno inválida para tests: ' + JSON.stringify(parsed.error.format()));
+  }
   process.exit(1);
 }
 
@@ -46,6 +58,7 @@ export const supabaseAdmin = createClient<Database>(
   }
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const supabase = createClient<any>(
   env.SUPABASE_URL,
   env.SUPABASE_SERVICE_ROLE_KEY,
