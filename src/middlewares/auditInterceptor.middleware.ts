@@ -55,7 +55,28 @@ export function auditInterceptorMiddleware(
         (req.originalUrl.includes('sales') ? 'SALES' : req.originalUrl.includes('projection') ? 'PYG' : null)
       ) as string | null;
 
-      const actionName = `${method}_${req.baseUrl || ''}${req.path}`.replace(/\/+/g, '_');
+      let actionName = `${method}_${req.baseUrl || ''}${req.path}`.replace(/\/+/g, '_');
+      // Mapeo a nombres semánticos de acción (TC-59)
+      const fullPath = `${req.baseUrl || ''}${req.path}`.toLowerCase();
+      if (fullPath.includes('/sales-projections/daily/upsert')) {
+        actionName = 'SALES_DAILY_UPSERT';
+      } else if (fullPath.includes('/sales-projections/monthly/upsert')) {
+        actionName = 'SALES_MONTHLY_UPSERT';
+      } else if (fullPath.includes('/sales-projections/lock')) {
+        actionName = req.body?.target_module === 'PYG' ? 'PYG_PROJECTION_LOCK' : 'SALES_PROJECTION_LOCK';
+      } else if (fullPath.includes('/sales-projections/unlock')) {
+        actionName = req.body?.target_module === 'PYG' ? 'PYG_PROJECTION_UNLOCK' : 'SALES_PROJECTION_UNLOCK';
+      } else if (fullPath.includes('/projections/save') || (fullPath.includes('/projections') && method === 'POST')) {
+        actionName = 'PYG_PROJECTION_SAVE';
+      } else if (fullPath.includes('/auth/login')) {
+        actionName = 'USER_LOGIN';
+      } else if (fullPath.includes('/auth/register')) {
+        actionName = 'USER_REGISTER';
+      } else if (fullPath.includes('/admin/users') && method === 'POST') {
+        actionName = 'ADMIN_CREATE_USER';
+      } else if (fullPath.includes('/admin/scopes')) {
+        actionName = 'ADMIN_UPDATE_SCOPE';
+      }
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -100,6 +121,17 @@ function sanitizePayload(data: unknown): unknown {
         ? (sanitizePayload(req.body?.previous_data || req.body?.old_payload) as Record<string, unknown>)
         : null;
 
+      // Sanitizar IP remota limitándola al primer IP y máximo 45 caracteres para evitar desbordamiento de columna (TC-58, H-00)
+      const rawForwarded = req.headers['x-forwarded-for'];
+      let clientIp: string | undefined;
+      if (typeof rawForwarded === 'string') {
+        clientIp = rawForwarded.split(',')[0].trim().substring(0, 45);
+      } else if (Array.isArray(rawForwarded) && rawForwarded.length > 0) {
+        clientIp = rawForwarded[0].split(',')[0].trim().substring(0, 45);
+      } else {
+        clientIp = (req.ip || req.socket?.remoteAddress || '').substring(0, 45) || undefined;
+      }
+
       AdminService.logAudit({
         user_id: req.user?.id || req.userProfile?.id,
         user_email: req.user?.email || req.userProfile?.email,
@@ -117,7 +149,7 @@ function sanitizePayload(data: unknown): unknown {
           response_status: res.statusCode,
           response_success: responseBody?.success ?? (res.statusCode >= 200 && res.statusCode < 400)
         },
-        ip_address: (req.headers['x-forwarded-for'] as string) || req.ip
+        ip_address: clientIp
       }).catch(() => {
         // Log asíncrono no bloqueante
       });

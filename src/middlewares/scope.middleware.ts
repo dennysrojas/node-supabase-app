@@ -107,7 +107,7 @@ export function requireModuleScope(
       // Filtrar el alcance coincidente por rol y tienda
       const matchingScope = scopes.find((s) => {
         const roleMatches = allowedRoles.includes(s.role as AppRole);
-        const storeMatches = s.store_uid === null || storeUid === null || s.store_uid === storeUid;
+        const storeMatches = s.store_uid === null || (storeUid !== null && s.store_uid === storeUid);
         return roleMatches && storeMatches;
       });
 

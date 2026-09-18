@@ -222,33 +222,60 @@ router.post(
   requireModuleScope('SALES', ['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL']) as RequestHandler,
   (async (req: Request, res: Response) => {
     try {
-      const { store_id, year, target_module } = req.body; // target_module: 'SALES' | 'PYG'
+      const { store_id, year, target_module = 'SALES' } = req.body;
       const userId = (req as AuthenticatedRequest).user?.id || null;
 
-    if (target_module === 'SALES') {
-      await supabase
-        .from('sales_projections_daily')
-        .update({ status: 'LOCKED', updated_at: new Date().toISOString() })
-        .eq('store_id', store_id)
-        .eq('year', Number(year));
+      if (!store_id || !year) {
+        return res.status(400).json({ success: false, message: 'store_id y year son obligatorios.' });
+      }
 
-      await supabase
-        .from('sales_projections_monthly')
-        .update({ status: 'LOCKED', updated_at: new Date().toISOString() })
-        .eq('store_id', store_id)
-        .eq('year', Number(year));
-    } else {
-      // Bloqueo de PyG
-      await supabase
-        .from('projection_headers')
-        .update({
-          status: 'LOCKED',
-          locked_at: new Date().toISOString(),
-          locked_by: userId
-        })
-        .eq('store_id', store_id)
-        .eq('period_year', Number(year));
-    }
+      if (target_module === 'SALES') {
+        await supabase
+          .from('sales_projections_daily')
+          .update({ status: 'LOCKED', updated_at: new Date().toISOString() })
+          .eq('store_id', store_id)
+          .eq('year', Number(year));
+
+        await supabase
+          .from('sales_projections_monthly')
+          .update({ status: 'LOCKED', updated_at: new Date().toISOString() })
+          .eq('store_id', store_id)
+          .eq('year', Number(year));
+      } else {
+        // Bloqueo de PyG: Validar precondición de que las ventas estén asentadas (TC-30)
+        const { data: draftDaily } = await supabase
+          .from('sales_projections_daily')
+          .select('id')
+          .eq('store_id', store_id)
+          .eq('year', Number(year))
+          .eq('status', 'DRAFT')
+          .limit(1);
+
+        const { data: draftMonthly } = await supabase
+          .from('sales_projections_monthly')
+          .select('id')
+          .eq('store_id', store_id)
+          .eq('year', Number(year))
+          .eq('status', 'DRAFT')
+          .limit(1);
+
+        if ((draftDaily && draftDaily.length > 0) || (draftMonthly && draftMonthly.length > 0)) {
+          return res.status(422).json({
+            success: false,
+            message: 'La proyección de Ventas debe estar asentada (LOCKED) antes de asentar la Matriz PyG.'
+          });
+        }
+
+        await supabase
+          .from('projection_headers')
+          .update({
+            status: 'LOCKED',
+            locked_at: new Date().toISOString(),
+            locked_by: userId
+          })
+          .eq('store_id', store_id)
+          .eq('period_year', Number(year));
+      }
 
     return res.json({
       success: true,
@@ -266,7 +293,11 @@ router.post(
   requireModuleScope('SALES', ['SUPERVISOR', 'ADMIN_GLOBAL']) as RequestHandler,
   (async (req: Request, res: Response) => {
   try {
-    const { store_id, year, target_module } = req.body;
+    const { store_id, year, target_module = 'SALES' } = req.body;
+
+    if (!store_id || !year) {
+      return res.status(400).json({ success: false, message: 'store_id y year son obligatorios.' });
+    }
 
     if (target_module === 'SALES') {
       await supabase
