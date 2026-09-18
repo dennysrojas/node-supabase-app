@@ -45,6 +45,14 @@ export class ProjectionController {
         return;
       }
 
+      if ((error as any)?.statusCode === 422 || (error instanceof Error && error.message.includes("ASENTADA"))) {
+        res.status(422).json({
+          success: false,
+          error: (error as Error).message,
+        });
+        return;
+      }
+
       next(error);
     }
   }

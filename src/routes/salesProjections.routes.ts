@@ -178,6 +178,22 @@ router.post(
       return res.status(400).json({ success: false, message: 'Payload inválido para ventas mensuales.' });
     }
 
+    // Verificar si la proyección ya está LOCKED
+    const { data: existingRecords } = await supabase
+      .from('sales_projections_monthly')
+      .select('status')
+      .eq('store_id', store_id)
+      .eq('year', Number(year))
+      .eq('status', 'LOCKED')
+      .limit(1);
+
+    if (existingRecords && existingRecords.length > 0) {
+      return res.status(422).json({
+        success: false,
+        message: 'La proyección de ventas mensuales para este periodo se encuentra ASENTADA (LOCKED). Debe desbloquearla primero.'
+      });
+    }
+
     const taxFactor = Number(tax_discount_pct) || 0.12;
 
     const payload = months_data.map((mItem: Record<string, unknown>) => {

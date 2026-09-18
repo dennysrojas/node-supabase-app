@@ -36,7 +36,15 @@ export function requireModuleScope(
         return;
       }
 
-      // 2. Extraer la tienda objetivo desde params, query o body (soporta camelCase y snake_case)
+      // 2. Determinar módulo objetivo (soporta target_module / module_code dinámico para endpoints compartidos como lock/unlock)
+      const targetModule = (
+        req.body?.target_module ||
+        req.body?.module_code ||
+        req.query?.module_code ||
+        moduleCode
+      ) as string;
+
+      // 3. Extraer la tienda objetivo desde params, query o body (soporta camelCase y snake_case)
       const storeUid = (
         req.params.store_id ||
         req.params.store_uid ||
@@ -53,10 +61,10 @@ export function requireModuleScope(
         null
       ) as string | null;
 
-      // 3. Verificación rápida de rol ADMIN_GLOBAL (acceso universal automático)
+      // 4. Verificación rápida de rol ADMIN_GLOBAL (acceso universal automático)
       if (req.userProfile?.global_role === 'ADMIN_GLOBAL') {
         req.userScope = {
-          module_code: moduleCode,
+          module_code: targetModule,
           store_uid: storeUid,
           role: 'ADMIN_GLOBAL'
         };
@@ -64,7 +72,7 @@ export function requireModuleScope(
         return;
       }
 
-      // 4. Soporte para mocks en ambiente de pruebas (test)
+      // 5. Soporte para mocks en ambiente de pruebas (test)
       if (process.env.NODE_ENV === 'test') {
         const isForbiddenMock = req.user.id.includes('forbidden') || req.user.id.includes('unauthorized');
         const role = (req.userProfile?.global_role || 'SUPERVISOR') as AppRole;
@@ -79,7 +87,7 @@ export function requireModuleScope(
         }
 
         req.userScope = {
-          module_code: moduleCode,
+          module_code: targetModule,
           store_uid: storeUid,
           role
         };
@@ -87,12 +95,12 @@ export function requireModuleScope(
         return;
       }
 
-      // 5. Consulta en Supabase DB: user_module_scopes
+      // 6. Consulta en Supabase DB: user_module_scopes
       const query = supabaseAdmin
         .from('user_module_scopes')
         .select('id, module_code, store_uid, role')
         .eq('user_id', req.user.id)
-        .eq('module_code', moduleCode);
+        .eq('module_code', targetModule);
 
       const { data: scopes, error } = await query;
 

@@ -139,6 +139,25 @@ export class AdminController {
         return;
       }
 
+      // Verificación de jerarquía RBAC: Un SUPERVISOR solo puede gestionar a CAPTURADOR (TC-50)
+      if (req.userProfile?.global_role === 'SUPERVISOR') {
+        const targetUser = await AdminService.getUserById(parseResult.data.user_id);
+        if (targetUser.global_role !== 'CAPTURADOR') {
+          res.status(403).json({
+            success: false,
+            error: 'Acceso denegado: Un supervisor solo puede gestionar alcances de usuarios con rol CAPTURADOR'
+          });
+          return;
+        }
+        if (parseResult.data.role && parseResult.data.role !== 'CAPTURADOR') {
+          res.status(403).json({
+            success: false,
+            error: 'Acceso denegado: Un supervisor no puede otorgar roles superiores a CAPTURADOR'
+          });
+          return;
+        }
+      }
+
       const assignedByUserId = req.user?.id;
       const scope = await AdminService.assignScope(parseResult.data, assignedByUserId);
 
@@ -168,6 +187,25 @@ export class AdminController {
         return;
       }
 
+      // Verificación de jerarquía RBAC: Un SUPERVISOR solo puede gestionar a CAPTURADOR (TC-50)
+      if (req.userProfile?.global_role === 'SUPERVISOR') {
+        const targetUser = await AdminService.getUserById(parseResult.data.user_id);
+        if (targetUser.global_role !== 'CAPTURADOR') {
+          res.status(403).json({
+            success: false,
+            error: 'Acceso denegado: Un supervisor solo puede gestionar alcances de usuarios con rol CAPTURADOR'
+          });
+          return;
+        }
+        if (parseResult.data.role && parseResult.data.role !== 'CAPTURADOR') {
+          res.status(403).json({
+            success: false,
+            error: 'Acceso denegado: Un supervisor no puede otorgar roles superiores a CAPTURADOR'
+          });
+          return;
+        }
+      }
+
       const assignedByUserId = req.user?.id;
       const scopes = await AdminService.assignBulkScopes(parseResult.data, assignedByUserId);
 
@@ -188,6 +226,22 @@ export class AdminController {
   static async revokeScope(req: ScopedRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+
+      // Verificación de jerarquía RBAC para revocar alcances
+      if (req.userProfile?.global_role === 'SUPERVISOR') {
+        const scopeToDelete = await AdminService.getScopeById(id);
+        if (scopeToDelete) {
+          const targetUser = await AdminService.getUserById(scopeToDelete.user_id);
+          if (targetUser.global_role !== 'CAPTURADOR') {
+            res.status(403).json({
+              success: false,
+              error: 'Acceso denegado: Un supervisor solo puede revocar alcances de usuarios con rol CAPTURADOR'
+            });
+            return;
+          }
+        }
+      }
+
       const revokedByUserId = req.user?.id;
       const revokedScope = await AdminService.revokeScope(id, revokedByUserId);
 

@@ -262,6 +262,18 @@ export class AdminService {
   }
 
   /**
+   * Obtener alcance por ID
+   */
+  static async getScopeById(scopeId: string) {
+    const { data } = await supabaseAdmin
+      .from('user_module_scopes')
+      .select('*')
+      .eq('id', scopeId)
+      .maybeSingle();
+    return data;
+  }
+
+  /**
    * Revocar alcance por ID
    */
   static async revokeScope(scopeId: string, revokedByUserId?: string) {

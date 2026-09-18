@@ -22,7 +22,27 @@ export class ProjectionService {
       details,
     } = dto;
 
-    // 0. Intentar persistencia transaccional ACID vía RPC en PostgreSQL (SEC-05)
+    // 0. Verificar si la proyección del periodo ya está ASENTADA (LOCKED)
+    const checkLocked = await supabase
+      .from("projection_headers")
+      .select("id, status")
+      .eq("store_id", store_id)
+      .eq("period_year", period_year)
+      .eq("period_month", period_month)
+      .eq("scenario", scenario)
+      .maybeSingle();
+
+    const existingHeader = checkLocked?.data;
+
+    if (existingHeader && existingHeader.status === "LOCKED") {
+      const err = new Error(
+        "La proyección de PyG para este periodo se encuentra ASENTADA (LOCKED). Debe ser desbloqueada por un Supervisor antes de guardar cambios."
+      );
+      (err as any).statusCode = 422;
+      throw err;
+    }
+
+    // 0.1. Intentar persistencia transaccional ACID vía RPC en PostgreSQL (SEC-05)
     try {
       if (typeof (supabase as any).rpc === "function") {
         const { data: rpcHeaderId, error: rpcError } = await (supabase as any).rpc(

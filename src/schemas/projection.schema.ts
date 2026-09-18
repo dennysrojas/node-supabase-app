@@ -10,7 +10,7 @@ export const createProjectionSchema = z.object({
   details: z
     .array(
       z.object({
-        account_item_id: z.string().uuid({ message: "ID de rubro inválido" }),
+        account_item_id: z.string().min(1, { message: "ID de rubro inválido" }),
         amount_usd: z
           .number()
           .min(0, { message: "El monto no puede ser negativo" }),
