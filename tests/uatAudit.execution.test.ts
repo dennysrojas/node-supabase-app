@@ -42,7 +42,7 @@ vi.mock('../src/config/supabase.js', () => {
   return { supabase: supabaseMock, supabaseAdmin: supabaseMock };
 });
 
-const validDetail = { account_item_id: 'item-2a', amount_usd: 120.5, percentage: 1.2 };
+const validDetail = { account_item_id: 'item-2a', amount_usd: 120.5, percentage: 0.12 };
 
 describe('UAT backend — payloads', () => {
   beforeEach(() => {
@@ -50,18 +50,18 @@ describe('UAT backend — payloads', () => {
     process.env.NODE_ENV = 'test';
   });
 
-  it('TC-VAL esquema de proyección rechaza negativos, vacío y desbordamiento', () => {
+  it('TC-VAL acepta una pérdida, rechaza tienda vacía y un porcentaje fuera de rango', () => {
     const ok = createProjectionSchema.safeParse({
       store_id: 'KFC-01',
       period_year: 2026,
       period_month: 3,
       details: [validDetail]
     });
-    const negative = createProjectionSchema.safeParse({
+    const loss = createProjectionSchema.safeParse({
       store_id: 'KFC-01',
       period_year: 2026,
       period_month: 3,
-      details: [{ account_item_id: 'item-2a', amount_usd: -15.5, percentage: 1 }]
+      details: [{ account_item_id: 'item-10a', amount_usd: -15.5, percentage: -0.15 }]
     });
     const blankStore = createProjectionSchema.safeParse({
       store_id: '   ',
@@ -85,18 +85,18 @@ describe('UAT backend — payloads', () => {
       store_id: 'KFC-01',
       period_year: 2026,
       period_month: 1,
-      details: [{ account_item_id: 'item-2a', amount_usd: 1, percentage: 250 }]
+      details: [{ account_item_id: 'item-2a', amount_usd: 1, percentage: 2 }]
     });
 
     const grossRatio = createProjectionSchema.safeParse({
       store_id: '  KFC-01  ',
       period_year: 2026,
       period_month: 1,
-      details: [{ account_item_id: 'item-1a', amount_usd: 1000, percentage: 113.64 }]
+      details: [{ account_item_id: 'item-1a', amount_usd: 1000, percentage: 1.1364 }]
     });
 
     expect(ok.success).toBe(true);
-    expect(negative.success).toBe(false);
+    expect(loss.success).toBe(true);
     expect(blankStore.success).toBe(false);
     expect(nullDetails.success).toBe(false);
     expect(badMonth.success).toBe(false);
@@ -248,6 +248,16 @@ describe('UAT backend — payloads', () => {
       .send({ store_id: 'KFC-01', year: 2026, target_module: 'PYG' });
     expect(res.status).toBe(422);
     expect(JSON.stringify(res.body)).toMatch(/asentada|LOCKED/i);
+  });
+
+  it('asentar PyG sin meses guardados responde 422', async () => {
+    mockSelect.mockReturnValue({ data: [], error: null });
+    const res = await request(app)
+      .post('/api/v1/sales-projections/lock')
+      .set('Authorization', 'Bearer mock-token-admin-global')
+      .send({ store_id: 'KFC-01', year: 2026, target_module: 'PYG' });
+    expect(res.status).toBe(422);
+    expect(JSON.stringify(res.body)).toMatch(/Guarda la matriz/i);
   });
 
   it('TC-06 upsert diario calcula neta = bruta * 0.88', async () => {

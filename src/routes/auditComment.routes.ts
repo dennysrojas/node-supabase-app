@@ -68,20 +68,20 @@ auditCommentRoutes.post(
       const userEmail = authReq.userProfile?.email || authReq.user?.email || "auditor@trd.com";
       const userRole = authReq.userProfile?.global_role || "AUDITOR";
       const userId = authReq.user?.id || authReq.userProfile?.id;
+      const isUuid = typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
 
-      const newEntry = {
-        id: `comm-${Date.now()}`,
+      const newEntry: Record<string, unknown> = {
         store_id,
         year: Number(year),
         month: Number(month),
         module_code,
-        user_id: userId,
         user_email: userEmail,
         user_role: userRole,
         severity: severity || "WARNING",
         comment: String(comment).trim(),
         created_at: new Date().toISOString(),
       };
+      if (isUuid) newEntry.user_id = userId;
 
       const { data, error } = await supabase
         .from("projection_audit_comments")

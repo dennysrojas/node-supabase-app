@@ -330,6 +330,23 @@ router.post(
           });
         }
 
+        const { data: pygHeaders, error: pygHeadersError } = await supabase
+          .from('projection_headers')
+          .select('id')
+          .eq('store_id', store_id)
+          .eq('period_year', Number(year));
+
+        if (pygHeadersError) {
+          throw new Error(pygHeadersError.message);
+        }
+
+        if (!pygHeaders || pygHeaders.length === 0) {
+          return res.status(422).json({
+            success: false,
+            message: 'Guarda la matriz PyG antes de asentarla. No hay meses persistidos para bloquear.'
+          });
+        }
+
         await supabase
           .from('projection_headers')
           .update({

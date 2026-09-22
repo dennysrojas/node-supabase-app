@@ -11,13 +11,11 @@ export const createProjectionSchema = z.object({
     .array(
       z.object({
         account_item_id: z.string().min(1, { message: "ID de rubro inválido" }),
-        amount_usd: z
-          .number()
-          .min(0, { message: "El monto no puede ser negativo" }),
+        amount_usd: z.number({ message: "El monto debe ser numérico" }),
         percentage: z
           .number()
-          .min(0)
-          .max(150, { message: "El porcentaje no puede superar 150" })
+          .min(-10, { message: "El porcentaje queda fuera de rango" })
+          .max(1.15, { message: "El porcentaje guardado no puede superar el 100, salvo la venta bruta calculada" })
           .optional()
           .default(0),
       }),
