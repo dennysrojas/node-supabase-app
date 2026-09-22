@@ -147,6 +147,41 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
       expect(response.body.error).toContain("Acceso denegado");
     });
 
+    it("POST /daily/upsert persiste el ticket de cada canal y no escribe la columna generada", async () => {
+      mockSelect.mockReturnValue({ data: [], error: null });
+
+      const response = await request(app)
+        .post("/api/v1/sales-projections/daily/upsert")
+        .set("Authorization", "Bearer mock-token-capturador")
+        .send({
+          store_id: "KFC-01",
+          year: 2026,
+          month: 9,
+          tax_discount_pct: 0.12,
+          days_data: [
+            {
+              day: 1,
+              channels: {
+                salon: { transactions: 100, average_ticket: 10 },
+                drive: { transactions: 0, average_ticket: 0 },
+                domicilio: { transactions: 0, average_ticket: 0 },
+                corners: { transactions: 0, average_ticket: 0 },
+              },
+            },
+          ],
+        });
+
+      expect(response.status).toBe(200);
+      const saved = mockUpsert.mock.calls.at(-1)?.[0] as Array<Record<string, unknown>>;
+      expect(saved[0].transactions).toBe(100);
+      expect(saved[0].average_ticket).toBe(10);
+      expect(saved[0].net_sales).toBe(880);
+      expect(saved[0].channels).toMatchObject({
+        salon: { transactions: 100, average_ticket: 10, gross_sales: 1000 },
+      });
+      expect(saved[0]).not.toHaveProperty("gross_sales");
+    });
+
     it("POST /daily/upsert debe rechazar payload si faltan campos obligatorios", async () => {
       const response = await request(app)
         .post("/api/v1/sales-projections/daily/upsert")

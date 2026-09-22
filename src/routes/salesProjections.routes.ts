@@ -5,6 +5,36 @@ import { requireModuleScope } from '../middlewares/scope.middleware.js';
 
 const router = Router();
 
+const SALES_CHANNEL_KEYS = ['salon', 'drive', 'domicilio', 'corners', 'ticket'] as const;
+
+function readErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' && err.message) {
+    return err.message;
+  }
+  return fallback;
+}
+
+function normalizeChannels(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return null;
+  const source = raw as Record<string, { transactions?: unknown; average_ticket?: unknown }>;
+  const normalized: Record<string, { transactions: number; average_ticket: number; gross_sales: number }> = {};
+
+  for (const key of SALES_CHANNEL_KEYS) {
+    const entry = source[key];
+    if (!entry) continue;
+    const transactions = Math.max(0, Math.round(Number(entry.transactions) || 0));
+    const averageTicket = Math.max(0, Math.round((Number(entry.average_ticket) || 0) * 100) / 100);
+    normalized[key] = {
+      transactions,
+      average_ticket: averageTicket,
+      gross_sales: Math.round(transactions * averageTicket * 100) / 100
+    };
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 // =============================================================================
 // 1. T1.1 - OBTENER CONFIGURACIÓN DE MARCA (brand_config)
 // =============================================================================
@@ -93,9 +123,28 @@ router.post(
 
     // Preparar registros con recálculo de Venta Neta
     const payload = days_data.map((dayItem: Record<string, unknown>) => {
-      const transactions = Math.max(0, Number(dayItem.total_transactions ?? dayItem.transactions) || 0);
-      const averageTicket = Math.max(0, Number(dayItem.average_ticket) || 0);
-      const grossSales = Number(dayItem.total_gross_sales ?? dayItem.gross_sales) || Math.round(transactions * averageTicket * 100) / 100;
+      const channels = normalizeChannels(dayItem.channels);
+      const channelTotals = channels
+        ? Object.values(channels).reduce(
+            (acc, channel) => {
+              acc.transactions += channel.transactions;
+              acc.gross += channel.transactions * channel.average_ticket;
+              return acc;
+            },
+            { transactions: 0, gross: 0 }
+          )
+        : null;
+
+      const transactions = channelTotals
+        ? channelTotals.transactions
+        : Math.max(0, Number(dayItem.total_transactions ?? dayItem.transactions) || 0);
+      const averageTicketInput = Math.max(0, Number(dayItem.average_ticket) || 0);
+      const grossSales = channelTotals
+        ? channelTotals.gross
+        : Number(dayItem.total_gross_sales ?? dayItem.gross_sales) || Math.round(transactions * averageTicketInput * 100) / 100;
+      const averageTicket = transactions > 0
+        ? Math.round((grossSales / transactions) * 100) / 100
+        : averageTicketInput;
       const netSales = Math.round(grossSales * (1 - taxFactor) * 100) / 100;
 
       const formattedMonth = String(month).padStart(2, '0');
@@ -111,7 +160,7 @@ router.post(
         transactions,
         average_ticket: averageTicket,
         net_sales: netSales,
-        channels: dayItem.channels || null,
+        channels,
         status: 'DRAFT',
         updated_at: new Date().toISOString()
       };
@@ -130,7 +179,7 @@ router.post(
       data
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Error al guardar ventas diarias';
+    const message = readErrorMessage(err, 'Error al guardar ventas diarias');
     return res.status(500).json({ success: false, message });
   }
 }) as RequestHandler);
