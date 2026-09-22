@@ -108,14 +108,13 @@ router.post(
       .select('status')
       .eq('store_id', store_id)
       .eq('year', Number(year))
-      .eq('month', Number(month))
       .eq('status', 'LOCKED')
       .limit(1);
 
     if (existingRecords && existingRecords.length > 0) {
       return res.status(422).json({
         success: false,
-        message: 'La proyección de ventas para este periodo se encuentra ASENTADA (LOCKED). Debe desbloquearla primero.'
+        message: 'La proyección de ventas de este año se encuentra ASENTADA (LOCKED). Debe desbloquearla antes de guardar otro mes.'
       });
     }
 

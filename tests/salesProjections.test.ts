@@ -182,6 +182,25 @@ describe("Módulo de Ventas (Sales Projections) - Characterization Tests", () =>
       expect(saved[0]).not.toHaveProperty("gross_sales");
     });
 
+    it("POST /daily/upsert rechaza otro mes si el año ya tiene una fila LOCKED", async () => {
+      mockSelect.mockReturnValue({ data: [{ status: "LOCKED" }], error: null });
+
+      const response = await request(app)
+        .post("/api/v1/sales-projections/daily/upsert")
+        .set("Authorization", "Bearer mock-token-capturador")
+        .send({
+          store_id: "KFC-01",
+          year: 2026,
+          month: 4,
+          days_data: [{ day: 1, transactions: 10, average_ticket: 5 }],
+        });
+
+      expect(response.status).toBe(422);
+      expect(response.body.message).toMatch(/ASENTADA|LOCKED/);
+      expect(mockUpsert).not.toHaveBeenCalled();
+      mockSelect.mockReset();
+    });
+
     it("POST /daily/upsert debe rechazar payload si faltan campos obligatorios", async () => {
       const response = await request(app)
         .post("/api/v1/sales-projections/daily/upsert")
