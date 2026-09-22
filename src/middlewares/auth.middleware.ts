@@ -56,7 +56,13 @@ export async function authMiddleware(
         id: mockId,
         email: `${mockId}@example.com`,
         full_name: `Usuario Test ${mockId}`,
-        global_role: mockId.includes('admin') ? 'ADMIN_GLOBAL' : mockId.includes('supervisor') ? 'SUPERVISOR' : 'CAPTURADOR',
+        global_role: mockId.includes('admin')
+          ? 'ADMIN_GLOBAL'
+          : mockId.includes('supervisor')
+            ? 'SUPERVISOR'
+            : mockId.includes('auditor')
+              ? 'AUDITOR'
+              : 'CAPTURADOR',
         is_active: true
       };
       next();

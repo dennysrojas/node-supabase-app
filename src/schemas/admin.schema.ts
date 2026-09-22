@@ -3,8 +3,15 @@ import { z } from 'zod';
 export const appRoleEnum = z.enum(['CAPTURADOR', 'SUPERVISOR', 'ADMIN_GLOBAL', 'AUDITOR', 'ADMIN_MODULO']);
 export const appModuleEnum = z.enum(['SALES', 'PYG', 'SURVEYS', 'QUALITY']);
 
+const corporateEmail = z
+  .string()
+  .email({ message: 'Email inválido' })
+  .refine((value) => /@(trd\.com|kfc\.com(\.ec)?)$/i.test(value.trim()), {
+    message: 'El correo debe ser corporativo (@trd.com, @kfc.com o @kfc.com.ec)'
+  });
+
 export const createUserSchema = z.object({
-  email: z.string().email({ message: 'Email inválido' }),
+  email: corporateEmail,
   full_name: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres' }),
   password: z.string().min(6, { message: 'La contraseña debe tener al menos 6 caracteres' }),
   global_role: appRoleEnum.optional().default('CAPTURADOR')
