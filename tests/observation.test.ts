@@ -159,4 +159,41 @@ describe("Módulo de Observaciones y Auditoría - Tests de Inmutabilidad y Segur
       expect(response.body.error).not.toContain("relation");
     });
   });
+
+  describe("3. El hallazgo queda en la base para que el administrador lo lea", () => {
+    it("POST / no envía un id de texto ni la relación threads", async () => {
+      mockSingle.mockResolvedValueOnce({
+        data: {
+          id: "8b1b6c2e-5c3a-4d2e-9f10-123456789abc",
+          status: "OPEN",
+          title: "Hallazgo inicial",
+          store_id: "K020ECU",
+          cell_key: "sales-day-1-salon"
+        },
+        error: null,
+      });
+
+      const response = await request(app)
+        .post("/api/v1/observations")
+        .set("Authorization", "Bearer mock-token-auditor")
+        .send({
+          store_id: "K020ECU",
+          year: 2026,
+          month: 3,
+          module_code: "SALES",
+          cell_key: "sales-day-1-salon",
+          title: "Hallazgo inicial",
+          description: "Revisar el día 1",
+          severity: "WARNING",
+        });
+
+      expect(response.status).toBe(201);
+      const inserted = mockInsert.mock.calls[0][0][0];
+      expect(inserted.id).toBeUndefined();
+      expect(inserted.threads).toBeUndefined();
+      expect(inserted.store_id).toBe("K020ECU");
+      expect(inserted.cell_key).toBe("sales-day-1-salon");
+      expect(inserted.created_by_role).toBe("AUDITOR");
+    });
+  });
 });

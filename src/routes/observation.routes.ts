@@ -64,9 +64,9 @@ observationRouter.post(
       const userEmail = authReq.userProfile?.email || authReq.user?.email || "auditor@trd.com";
       const userRole = authReq.userProfile?.global_role || "AUDITOR";
       const userId = authReq.user?.id || authReq.userProfile?.id;
+      const isUuid = typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
 
-      const newObs = {
-        id: `obs-${Date.now()}`,
+      const newObs: Record<string, unknown> = {
         store_id,
         year: Number(year),
         month: Number(month),
@@ -76,13 +76,12 @@ observationRouter.post(
         description: String(description).trim(),
         severity: severity || "WARNING",
         status: "OPEN",
-        created_by_id: userId,
         created_by_email: userEmail,
         created_by_role: userRole,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        threads: []
       };
+      if (isUuid) newObs.created_by_id = userId;
 
       const { data, error } = await supabase
         .from("record_observations")
@@ -142,10 +141,9 @@ observationRouter.post("/:id/threads", (async (req: Request, res: Response) => {
     const userRole = authReq.userProfile?.global_role || "CAPTURADOR";
     const userId = authReq.user?.id || authReq.userProfile?.id;
 
-    const newThread = {
-      id: `th-${Date.now()}`,
+    const isUuid = typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    const newThread: Record<string, unknown> = {
       observation_id: id,
-      user_id: userId,
       user_email: userEmail,
       user_role: userRole,
       message: String(message).trim(),
@@ -153,6 +151,7 @@ observationRouter.post("/:id/threads", (async (req: Request, res: Response) => {
       action_taken: action_taken || "SUBSANACION",
       created_at: new Date().toISOString()
     };
+    if (isUuid) newThread.user_id = userId;
 
     // Si el capturador subsana, actualizar estado de la observación a IN_REVIEW
     if (action_taken === "SUBSANACION") {
