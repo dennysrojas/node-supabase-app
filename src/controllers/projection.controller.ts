@@ -53,7 +53,11 @@ export class ProjectionController {
         return;
       }
 
-      next(error);
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Error interno del servidor";
+      console.error("Error al guardar proyección:", error);
+      res.status(500).json({ success: false, error: message });
     }
   }
 
