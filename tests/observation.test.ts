@@ -83,7 +83,30 @@ describe("Módulo de Observaciones y Auditoría - Tests de Inmutabilidad y Segur
       expect(response.body.error).toContain("inmutable");
     });
 
-    it("PATCH /:id/status debe rechazar con 422 cuando la observación está CERRADA", async () => {
+    it("PATCH /:id/status reabre un expediente CERRADO cuando el estado pedido es OPEN", async () => {
+      mockSingle
+        .mockResolvedValueOnce({
+          data: { id: "obs-123", status: "CLOSED" },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: { id: "obs-123", status: "OPEN", closed_at: null, closed_by_email: null },
+          error: null,
+        });
+
+      const response = await request(app)
+        .patch("/api/v1/observations/obs-123/status")
+        .set("Authorization", "Bearer mock-token-supervisor")
+        .send({
+          status: "OPEN",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.status).toBe("OPEN");
+    });
+
+    it("PATCH /:id/status rechaza otro estado si el expediente está CERRADO", async () => {
       mockSingle.mockResolvedValueOnce({
         data: { id: "obs-123", status: "CLOSED" },
         error: null,
@@ -93,12 +116,12 @@ describe("Módulo de Observaciones y Auditoría - Tests de Inmutabilidad y Segur
         .patch("/api/v1/observations/obs-123/status")
         .set("Authorization", "Bearer mock-token-supervisor")
         .send({
-          status: "OPEN",
+          status: "RESOLVED",
         });
 
       expect(response.status).toBe(422);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain("inmutable");
+      expect(response.body.error).toContain("CERRADO");
     });
 
     it("PATCH /:id/close debe rechazar con 422 si la observación ya se encuentra CERRADA", async () => {

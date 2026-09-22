@@ -186,7 +186,153 @@ observationRouter.post("/:id/threads", (async (req: Request, res: Response) => {
   }
 }) as RequestHandler);
 
-// 4. PATCH /api/v1/observations/:id/status - Cambiar estado (OPEN -> IN_REVIEW -> RESOLVED)
+// 4. PATCH /api/v1/observations/:id - Corregir el hallazgo propio mientras no esté cerrado
+observationRouter.patch(
+  "/:id",
+  requireObservationRole(["AUDITOR", "SUPERVISOR", "ADMIN_GLOBAL"]),
+  (async (req: Request, res: Response) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = req.params;
+      const { title, description } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({
+          success: false,
+          error: "El título y la descripción son obligatorios",
+        });
+      }
+
+      const { data: existingObs, error: findError } = await supabase
+        .from("record_observations")
+        .select("status, created_by_id, created_by_email")
+        .eq("id", id)
+        .single();
+
+      if (findError || !existingObs) {
+        return res.status(404).json({ success: false, error: "Observación no encontrada" });
+      }
+
+      if (existingObs.status === "CLOSED") {
+        return res.status(422).json({
+          success: false,
+          error: "Operación rechazada: El expediente se encuentra CERRADO",
+        });
+      }
+
+      const userId = authReq.user?.id || authReq.userProfile?.id;
+      const userEmail = authReq.userProfile?.email || authReq.user?.email;
+      const isAuthor = existingObs.created_by_id === userId || existingObs.created_by_email === userEmail;
+      if (!isAuthor) {
+        return res.status(403).json({
+          success: false,
+          error: "Solo el autor puede corregir este hallazgo",
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("record_observations")
+        .update({
+          title: String(title).trim(),
+          description: String(description).trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Error interno al procesar la solicitud en el servidor",
+        });
+      }
+
+      return res.status(200).json({ success: true, data });
+    } catch (err: unknown) {
+      console.error("❌ Excepción no controlada en PATCH /observations/:id:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
+    }
+  }) as RequestHandler
+);
+
+// 5. PATCH /api/v1/observations/:id/threads/:threadId - Corregir un comentario propio
+observationRouter.patch("/:id/threads/:threadId", (async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { id, threadId } = req.params;
+    const { message } = req.body;
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ success: false, error: "El mensaje es obligatorio" });
+    }
+
+    const { data: existingObs, error: findError } = await supabase
+      .from("record_observations")
+      .select("status")
+      .eq("id", id)
+      .single();
+
+    if (findError || !existingObs) {
+      return res.status(404).json({ success: false, error: "Observación no encontrada" });
+    }
+
+    if (existingObs.status === "CLOSED") {
+      return res.status(422).json({
+        success: false,
+        error: "Operación rechazada: El expediente se encuentra CERRADO",
+      });
+    }
+
+    const { data: thread, error: threadError } = await supabase
+      .from("observation_threads")
+      .select("user_id, user_email")
+      .eq("id", threadId)
+      .eq("observation_id", id)
+      .single();
+
+    if (threadError || !thread) {
+      return res.status(404).json({ success: false, error: "Comentario no encontrado" });
+    }
+
+    const userId = authReq.user?.id || authReq.userProfile?.id;
+    const userEmail = authReq.userProfile?.email || authReq.user?.email;
+    const isAuthor = thread.user_id === userId || thread.user_email === userEmail;
+    if (!isAuthor) {
+      return res.status(403).json({
+        success: false,
+        error: "Solo el autor puede corregir este comentario",
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("observation_threads")
+      .update({ message: String(message).trim() })
+      .eq("id", threadId)
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: "Error interno al procesar la solicitud en el servidor",
+      });
+    }
+
+    return res.status(200).json({ success: true, data });
+  } catch (err: unknown) {
+    console.error("❌ Excepción no controlada en PATCH /observations/:id/threads/:threadId:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Error interno al procesar la solicitud en el servidor",
+    });
+  }
+}) as RequestHandler);
+
+// 6. PATCH /api/v1/observations/:id/status - Cambiar estado, reabrir o quitar resuelto
 observationRouter.patch(
   "/:id/status",
   requireObservationRole(["AUDITOR", "SUPERVISOR", "ADMIN_GLOBAL"]),
@@ -210,16 +356,24 @@ observationRouter.patch(
         return res.status(404).json({ success: false, error: "Observación no encontrada" });
       }
 
-      if (existingObs.status === "CLOSED") {
+      if (existingObs.status === "CLOSED" && status !== "OPEN") {
         return res.status(422).json({
           success: false,
-          error: "Operación rechazada: El expediente se encuentra CERRADO (inmutable)",
+          error: "Operación rechazada: El expediente se encuentra CERRADO. Solo se puede reabrir.",
         });
       }
 
+      const nextStatus = {
+        status,
+        updated_at: new Date().toISOString(),
+        ...(status === "OPEN"
+          ? { closed_at: null, closed_by_email: null }
+          : {}),
+      };
+
       const { data, error } = await supabase
         .from("record_observations")
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(nextStatus)
         .eq("id", id)
         .select("*")
         .single();
