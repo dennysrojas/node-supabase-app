@@ -8,6 +8,7 @@ import {
   queryAuditLogsSchema
 } from '../schemas/admin.schema.js';
 import type { ScopedRequest } from '../middlewares/scope.middleware.js';
+import { roleLabel } from '../utils/roleLabels.js';
 
 export class AdminController {
   /**
@@ -145,14 +146,14 @@ export class AdminController {
         if (targetUser.global_role !== 'CAPTURADOR') {
           res.status(403).json({
             success: false,
-            error: 'Acceso denegado: Un supervisor solo puede gestionar alcances de usuarios con rol CAPTURADOR'
+            error: `Acceso denegado: Un supervisor solo puede gestionar alcances de usuarios con rol ${roleLabel('CAPTURADOR')}`
           });
           return;
         }
         if (parseResult.data.role && parseResult.data.role !== 'CAPTURADOR') {
           res.status(403).json({
             success: false,
-            error: 'Acceso denegado: Un supervisor no puede otorgar roles superiores a CAPTURADOR'
+            error: `Acceso denegado: Un supervisor no puede otorgar roles superiores a ${roleLabel('CAPTURADOR')}`
           });
           return;
         }
@@ -193,14 +194,14 @@ export class AdminController {
         if (targetUser.global_role !== 'CAPTURADOR') {
           res.status(403).json({
             success: false,
-            error: 'Acceso denegado: Un supervisor solo puede gestionar alcances de usuarios con rol CAPTURADOR'
+            error: `Acceso denegado: Un supervisor solo puede gestionar alcances de usuarios con rol ${roleLabel('CAPTURADOR')}`
           });
           return;
         }
         if (parseResult.data.role && parseResult.data.role !== 'CAPTURADOR') {
           res.status(403).json({
             success: false,
-            error: 'Acceso denegado: Un supervisor no puede otorgar roles superiores a CAPTURADOR'
+            error: `Acceso denegado: Un supervisor no puede otorgar roles superiores a ${roleLabel('CAPTURADOR')}`
           });
           return;
         }
@@ -235,7 +236,7 @@ export class AdminController {
           if (targetUser.global_role !== 'CAPTURADOR') {
             res.status(403).json({
               success: false,
-              error: 'Acceso denegado: Un supervisor solo puede revocar alcances de usuarios con rol CAPTURADOR'
+              error: `Acceso denegado: Un supervisor solo puede revocar alcances de usuarios con rol ${roleLabel('CAPTURADOR')}`
             });
             return;
           }

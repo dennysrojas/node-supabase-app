@@ -1,5 +1,6 @@
 import type { Response, NextFunction, RequestHandler } from "express";
 import type { AuthenticatedRequest, UserProfile } from "./auth.middleware.js";
+import { roleLabel } from "../utils/roleLabels.js";
 
 export interface AuthenticatedUserRequest extends AuthenticatedRequest {
   userRole?: string;
@@ -33,7 +34,7 @@ export const requireObservationRole = (
     if (!allowedRoles.includes(global_role)) {
       res.status(403).json({
         success: false,
-        error: `Acceso denegado. Se requiere uno de los siguientes roles: ${allowedRoles.join(", ")}`,
+        error: `Acceso denegado. Se requiere uno de los siguientes roles: ${allowedRoles.map((role) => roleLabel(role)).join(", ")}`,
       });
       return;
     }
