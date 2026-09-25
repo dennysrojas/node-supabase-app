@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express, { Response } from 'express';
-import { authMiddleware, AuthenticatedRequest } from '../src/middlewares/auth.middleware.js';
+import { authMiddleware, requireGlobalRole, AuthenticatedRequest } from '../src/middlewares/auth.middleware.js';
 
 // Crear una app de Express aislada para probar el middleware
 const testApp = express();
@@ -67,5 +67,40 @@ describe('Middleware de Verificación Supabase Auth JWT (authMiddleware)', () =>
     expect(response.body.success).toBe(true);
     expect(response.body.user.id).toBe('admin-123');
     expect(response.body.userProfile.global_role).toBe('ADMIN_GLOBAL');
+  });
+});
+
+describe('requireGlobalRole', () => {
+  const roleApp = express();
+  roleApp.use(express.json());
+  roleApp.get(
+    '/admin-only',
+    authMiddleware as any,
+    requireGlobalRole(['ADMIN_GLOBAL', 'SUPERVISOR']) as any,
+    (_req: AuthenticatedRequest, res: Response) => {
+      res.status(200).json({ success: true });
+    }
+  );
+
+  it('responde 403 con etiquetas legibles cuando el rol no está autorizado', async () => {
+    const response = await request(roleApp)
+      .get('/admin-only')
+      .set('Authorization', 'Bearer mock-token-capturador-1');
+
+    expect(response.status).toBe(403);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBe(
+      'Acceso denegado: Se requiere uno de los siguientes roles globales: Administrador, Supervisor'
+    );
+    expect(response.body.error).not.toContain('ADMIN_GLOBAL');
+  });
+
+  it('autoriza al rol permitido y no altera el flujo', async () => {
+    const response = await request(roleApp)
+      .get('/admin-only')
+      .set('Authorization', 'Bearer mock-token-admin-123');
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
   });
 });
