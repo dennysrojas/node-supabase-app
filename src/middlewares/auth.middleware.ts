@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import type { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '../config/supabase.js';
+import { roleLabel } from '../utils/roleLabels.js';
 
 export interface UserProfile {
   id: string;
@@ -141,7 +142,7 @@ export function requireGlobalRole(
     if (!allowedRoles.includes(req.userProfile.global_role)) {
       res.status(403).json({
         success: false,
-        error: `Acceso denegado: Se requiere uno de los siguientes roles globales: ${allowedRoles.join(', ')}`
+        error: `Acceso denegado: Se requiere uno de los siguientes roles globales: ${allowedRoles.map((role) => roleLabel(role)).join(', ')}`
       });
       return;
     }
